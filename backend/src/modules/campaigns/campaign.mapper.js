@@ -1,0 +1,40 @@
+const decimal = (value) => value == null ? null : Number(value);
+
+export function toCampaign(campaign) {
+  return {
+    id: campaign.id,
+    slug: campaign.slug,
+    title: campaign.title,
+    description: campaign.description,
+    summary: campaign.description,
+    category: campaign.category,
+    niche: campaign.category,
+    goal: campaign.goal || '',
+    platforms: campaign.platforms,
+    budgetMin: decimal(campaign.budgetMin),
+    budgetMax: decimal(campaign.budgetMax),
+    currency: campaign.currency,
+    applicationDeadline: campaign.applicationDeadline,
+    deadline: campaign.deadline,
+    deliverables: campaign.deliverables,
+    requirements: campaign.requirements,
+    status: campaign.status,
+    isPublic: campaign.isPublic,
+    version: campaign.version,
+    publishedAt: campaign.publishedAt,
+    archivedAt: campaign.archivedAt,
+    proposalCount: campaign._count?.proposals || 0,
+    invitationCount: campaign._count?.invitations || 0,
+    shortlistCount: campaign._count?.shortlistEntries || 0,
+    business: {
+      id: campaign.business.id,
+      slug: campaign.business.slug,
+      name: campaign.business.companyName,
+      logo: campaign.business.logoUrl || '',
+      cover: campaign.business.coverUrl || '',
+      verified: campaign.business.verificationStatus === 'VERIFIED',
+    },
+    createdAt: campaign.createdAt,
+    updatedAt: campaign.updatedAt,
+  };
+}

@@ -1,0 +1,10 @@
+import { Router } from 'express';
+import { validate } from '../../shared/middleware/validate.js';
+import { authenticate } from '../auth/public.js';
+import { contractController } from './contract.controller.js';
+import { contractActionSchema, contractDocumentSchema, contractIdSchema } from './contract.schema.js';
+export const contractRouter = Router();
+contractRouter.use(authenticate);
+contractRouter.get('/:id', validate(contractIdSchema), contractController.get);
+contractRouter.post('/:id/action', validate(contractActionSchema), contractController.action);
+contractRouter.get('/:id/document', validate(contractDocumentSchema), contractController.document);

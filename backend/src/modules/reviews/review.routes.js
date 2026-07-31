@@ -1,0 +1,10 @@
+import { Router } from 'express';
+import { validate } from '../../shared/middleware/validate.js';
+import { authenticate } from '../auth/public.js';
+import { reviewController } from './review.controller.js';
+import { publishShowcaseSchema, reviewListSchema, submitReviewSchema } from './review.schema.js';
+export const collaborationReviewRouter = Router();
+collaborationReviewRouter.use(authenticate);
+collaborationReviewRouter.get('/:id/reviews', validate(reviewListSchema), reviewController.list);
+collaborationReviewRouter.post('/:id/reviews', validate(submitReviewSchema), reviewController.submit);
+collaborationReviewRouter.post('/:id/showcase', validate(publishShowcaseSchema), reviewController.publishShowcase);

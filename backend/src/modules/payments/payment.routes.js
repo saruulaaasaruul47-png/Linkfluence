@@ -1,0 +1,17 @@
+import { Router } from 'express';
+import { validate } from '../../shared/middleware/validate.js';
+import { authenticate } from '../auth/public.js';
+import { paymentController } from './payment.controller.js';
+import { addMethodSchema, fundingIntentSchema, methodIdSchema, paymentIdSchema, paymentListSchema, payoutSchema, refundSchema, webhookSchema } from './payment.schema.js';
+export const collaborationPaymentRouter = Router();
+collaborationPaymentRouter.post('/:id/payments/funding-intent', authenticate, validate(fundingIntentSchema), paymentController.createFundingIntent);
+export const paymentRouter = Router();
+paymentRouter.post('/webhooks/mock', validate(webhookSchema), paymentController.webhook);
+paymentRouter.use(authenticate);
+paymentRouter.get('/transactions', validate(paymentListSchema), paymentController.list);
+paymentRouter.get('/methods', paymentController.methods);
+paymentRouter.post('/methods', validate(addMethodSchema), paymentController.addMethod);
+paymentRouter.delete('/methods/:id', validate(methodIdSchema), paymentController.removeMethod);
+paymentRouter.post('/:id/mock-confirm', validate(paymentIdSchema), paymentController.mockConfirm);
+paymentRouter.post('/:id/refunds', validate(refundSchema), paymentController.refund);
+paymentRouter.post('/:id/payouts', validate(payoutSchema), paymentController.payout);

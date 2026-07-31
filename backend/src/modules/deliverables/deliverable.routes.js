@@ -1,0 +1,10 @@
+import { Router } from 'express';
+import { validate } from '../../shared/middleware/validate.js';
+import { authenticate } from '../auth/public.js';
+import { deliverableController } from './deliverable.controller.js';
+import { reviewDeliverableSchema, reviseDeliverableSchema, submitDeliverableSchema } from './deliverable.schema.js';
+export const collaborationDeliverableRouter = Router();
+collaborationDeliverableRouter.use(authenticate);
+collaborationDeliverableRouter.post('/:id/deliverables', validate(submitDeliverableSchema), deliverableController.submit);
+collaborationDeliverableRouter.post('/:id/deliverables/:deliverableId/revision', validate(reviseDeliverableSchema), deliverableController.revise);
+collaborationDeliverableRouter.post('/:id/deliverables/:deliverableId/review', validate(reviewDeliverableSchema), deliverableController.review);

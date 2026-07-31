@@ -1,0 +1,1173 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+}
+
+// Authentication and account
+
+model User {
+  id              String        @id @default(cuid())
+  email           String        @unique
+  username        String?       @unique
+  passwordHash    String?
+  displayName     String
+  avatarUrl       String?
+  phone           String?
+  location        String?
+  bio             String?
+  sessionVersion  Int           @default(0)
+  roles           UserRole[]    @default([VIEWER])
+  status          AccountStatus @default(PENDING_VERIFICATION)
+  emailVerifiedAt DateTime?
+  lastSeenAt      DateTime?
+  createdAt       DateTime      @default(now())
+  updatedAt       DateTime      @updatedAt
+  deletedAt       DateTime?
+
+  creatorProfile      CreatorProfile?
+  businessProfile     BusinessProfile?
+  authTokens          AuthToken[]
+  verificationCodes   VerificationCode[]
+  conversationMembers ConversationMember[]
+  messages            Message[]
+  notifications       Notification[]
+  collections         Collection[]
+  following           Follow[]
+  savedItems          SavedItem[]
+  recentViews         RecentView[]
+  shareEvents         ShareEvent[]
+  showcaseReactions   ShowcaseReaction[]
+  reviewsWritten      Review[]                @relation("ReviewAuthor")
+  reviewsReceived     Review[]                @relation("ReviewSubject")
+  deliverables        Deliverable[]
+  analyticsEvents     AnalyticsEvent[]
+  reportedCases       TrustCase[]             @relation("CaseReporter")
+  assignedCases       TrustCase[]             @relation("CaseAssignee")
+  adminActions        AdminAction[]           @relation("AdminActor")
+  mediaAssets         MediaAsset[]
+  offerRevisions      OfferRevision[]
+  agreementVersions   AgreementVersion[]
+  collaborationTasks  CollaborationTask[]
+  collaborationFiles  CollaborationFile[]
+  collaborationEvents CollaborationActivity[]
+  paymentMethods      PaymentMethod[]
+  paymentRefunds      PaymentRefund[]
+  paymentPayouts      PaymentPayout[]
+
+  @@index([status, createdAt])
+}
+
+model AuthToken {
+  id           String    @id @default(cuid())
+  userId       String
+  tokenHash    String    @unique
+  jti          String    @unique
+  familyId     String
+  replacedById String?   @unique
+  createdByIp  String?
+  userAgent    String?
+  expiresAt    DateTime
+  revokedAt    DateTime?
+  createdAt    DateTime  @default(now())
+
+  user       User        @relation(fields: [userId], references: [id], onDelete: Cascade)
+  replacedBy AuthToken?  @relation("AuthTokenRotation", fields: [replacedById], references: [id], onDelete: SetNull)
+  replaces   AuthToken[] @relation("AuthTokenRotation")
+
+  @@index([userId])
+  @@index([userId, familyId])
+  @@index([expiresAt])
+  @@index([userId, revokedAt])
+}
+
+model VerificationCode {
+  id                String              @id @default(cuid())
+  userId            String
+  codeHash          String
+  purpose           VerificationPurpose @default(EMAIL_VERIFICATION)
+  attempts          Int                 @default(0)
+  expiresAt         DateTime
+  resendAvailableAt DateTime            @default(now())
+  consumedAt        DateTime?
+  createdAt         DateTime            @default(now())
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([userId, purpose])
+  @@index([expiresAt])
+}
+
+// Creator and business channels
+
+model CreatorProfile {
+  id                  String             @id @default(cuid())
+  userId              String             @unique
+  channelName         String
+  slug                String             @unique
+  bio                 String?
+  location            String?
+  categories          String[]           @default([])
+  skills              String[]           @default([])
+  languages           String[]           @default([])
+  audienceDescription String?
+  contentFormat       String?
+  startingRate        Decimal?           @db.Decimal(18, 2)
+  rates               Json?
+  publicRates         Boolean            @default(true)
+  currency            String             @default("MNT")
+  avatarUrl           String?
+  coverUrl            String?
+  availability        String?
+  metadata            Json?
+  verificationStatus  VerificationStatus @default(UNVERIFIED)
+  availableForWork    Boolean            @default(true)
+  ratingAverage       Decimal?           @db.Decimal(3, 2)
+  ratingCount         Int                @default(0)
+  createdAt           DateTime           @default(now())
+  updatedAt           DateTime           @updatedAt
+
+  user              User                 @relation(fields: [userId], references: [id], onDelete: Cascade)
+  socialAccounts    SocialAccount[]
+  portfolioItems    PortfolioItem[]
+  proposals         Proposal[]
+  receivedOffers    WorkOffer[]
+  collaborations    Collaboration[]
+  showcasePosts     ShowcasePost[]
+  shortlistEntries  CreatorShortlist[]
+  comparisonEntries CreatorComparison[]
+  invitations       CampaignInvitation[]
+
+  @@index([verificationStatus, availableForWork])
+  @@index([channelName])
+  @@index([location])
+  @@index([startingRate])
+  @@index([ratingAverage])
+  @@index([categories], type: Gin)
+}
+
+model BusinessProfile {
+  id                 String             @id @default(cuid())
+  userId             String             @unique
+  companyName        String
+  slug               String             @unique
+  description        String?
+  industry           String?
+  location           String?
+  website            String?
+  companySize        String?
+  contactEmail       String?
+  preferences        Json?
+  logoUrl            String?
+  coverUrl           String?
+  verificationStatus VerificationStatus @default(UNVERIFIED)
+  ratingAverage      Decimal?           @db.Decimal(3, 2)
+  ratingCount        Int                @default(0)
+  createdAt          DateTime           @default(now())
+  updatedAt          DateTime           @updatedAt
+
+  user             User                 @relation(fields: [userId], references: [id], onDelete: Cascade)
+  campaigns        Campaign[]
+  sentOffers       WorkOffer[]
+  collaborations   Collaboration[]
+  shortlistEntries CreatorShortlist[]
+  comparisons      CreatorComparison[]
+  invitations      CampaignInvitation[]
+
+  @@index([verificationStatus, createdAt])
+  @@index([companyName])
+  @@index([industry])
+  @@index([location])
+  @@index([ratingAverage])
+}
+
+model SocialAccount {
+  id                 String             @id @default(cuid())
+  creatorId          String
+  platform           SocialPlatform
+  handle             String
+  profileUrl         String?
+  followerCount      Int                @default(0)
+  engagementRate     Decimal?           @db.Decimal(6, 3)
+  verificationStatus VerificationStatus @default(UNVERIFIED)
+  metadata           Json?
+  createdAt          DateTime           @default(now())
+  updatedAt          DateTime           @updatedAt
+
+  creator CreatorProfile @relation(fields: [creatorId], references: [id], onDelete: Cascade)
+
+  @@unique([platform, handle])
+  @@unique([creatorId, platform])
+  @@index([platform, followerCount])
+}
+
+model PortfolioItem {
+  id           String          @id @default(cuid())
+  creatorId    String
+  mediaAssetId String?
+  title        String
+  description  String?
+  category     String?
+  mediaType    MediaType
+  mediaUrl     String
+  thumbnailUrl String?
+  statistics   Json?
+  status       PortfolioStatus @default(PUBLISHED)
+  sortOrder    Int             @default(0)
+  publishedAt  DateTime?
+  deletedAt    DateTime?
+  createdAt    DateTime        @default(now())
+  updatedAt    DateTime        @updatedAt
+
+  creator       CreatorProfile @relation(fields: [creatorId], references: [id], onDelete: Cascade)
+  mediaAsset    MediaAsset?    @relation(fields: [mediaAssetId], references: [id], onDelete: SetNull)
+  showcasePosts ShowcasePost[]
+
+  @@index([creatorId, status, sortOrder])
+  @@index([creatorId, deletedAt, createdAt])
+}
+
+model MediaAsset {
+  id           String       @id @default(cuid())
+  ownerId      String
+  purpose      MediaPurpose
+  storageKey   String       @unique
+  url          String
+  originalName String
+  mimeType     String
+  sizeBytes    Int
+  checksum     String
+  createdAt    DateTime     @default(now())
+  deletedAt    DateTime?
+
+  owner              User                @relation(fields: [ownerId], references: [id], onDelete: Cascade)
+  portfolioItems     PortfolioItem[]
+  collaborationFiles CollaborationFile[]
+  deliverables       Deliverable[]
+
+  @@index([ownerId, purpose, createdAt])
+  @@index([deletedAt])
+}
+
+// Campaign, proposal and initial work offer
+
+model Campaign {
+  id           String           @id @default(cuid())
+  businessId   String
+  title        String
+  slug         String           @unique
+  description  String
+  category     String
+  platforms    SocialPlatform[] @default([])
+  budgetMin    Decimal?         @db.Decimal(18, 2)
+  budgetMax    Decimal?         @db.Decimal(18, 2)
+  currency     String           @default("MNT")
+  deadline     DateTime?
+  requirements Json?
+  status       CampaignStatus   @default(DRAFT)
+  isPublic     Boolean          @default(false)
+  publishedAt  DateTime?
+  createdAt    DateTime         @default(now())
+  updatedAt    DateTime         @updatedAt
+
+  business         BusinessProfile      @relation(fields: [businessId], references: [id], onDelete: Cascade)
+  proposals        Proposal[]
+  offers           WorkOffer[]
+  collaborations   Collaboration[]
+  shortlistEntries CreatorShortlist[]
+  comparisons      CreatorComparison[]
+  invitations      CampaignInvitation[]
+
+  goal                String?
+  deliverables        Json?
+  applicationDeadline DateTime?
+  version             Int       @default(1)
+  archivedAt          DateTime?
+
+  @@index([businessId, status])
+  @@index([status, category, publishedAt])
+  @@index([deadline])
+}
+
+model Proposal {
+  id             String         @id @default(cuid())
+  campaignId     String
+  creatorId      String
+  amount         Decimal?       @db.Decimal(18, 2)
+  currency       String         @default("MNT")
+  timeline       String?
+  message        String?
+  deliverables   Json?
+  counterAmount  Decimal?       @db.Decimal(18, 2)
+  counterMessage String?
+  status         ProposalStatus @default(SUBMITTED)
+  submittedAt    DateTime       @default(now())
+  version        Int            @default(1)
+  updatedAt      DateTime       @updatedAt
+
+  campaign Campaign       @relation(fields: [campaignId], references: [id], onDelete: Cascade)
+  creator  CreatorProfile @relation(fields: [creatorId], references: [id], onDelete: Cascade)
+
+  @@unique([campaignId, creatorId])
+  @@index([creatorId, status])
+  @@index([campaignId, status])
+}
+
+model WorkOffer {
+  id           String      @id @default(cuid())
+  businessId   String
+  creatorId    String
+  campaignId   String?
+  title        String
+  contentType  String
+  budget       Decimal
+  currency     String      @default("MNT")
+  timeline     String
+  message      String?
+  counterTerms Json?
+  finalTerms   Json?
+  status       OfferStatus @default(PENDING_CREATOR_RESPONSE)
+  respondedAt  DateTime?
+  version      Int         @default(1)
+  createdAt    DateTime    @default(now())
+  updatedAt    DateTime    @updatedAt
+
+  business      BusinessProfile @relation(fields: [businessId], references: [id], onDelete: Cascade)
+  creator       CreatorProfile  @relation(fields: [creatorId], references: [id], onDelete: Cascade)
+  campaign      Campaign?       @relation(fields: [campaignId], references: [id], onDelete: SetNull)
+  collaboration Collaboration?
+  revisions     OfferRevision[]
+
+  @@index([creatorId, status])
+  @@index([businessId, status])
+}
+
+model OfferRevision {
+  id        String   @id @default(cuid())
+  offerId   String
+  actorId   String
+  version   Int
+  action    String
+  snapshot  Json
+  note      String?
+  createdAt DateTime @default(now())
+
+  offer WorkOffer @relation(fields: [offerId], references: [id], onDelete: Cascade)
+  actor User      @relation(fields: [actorId], references: [id], onDelete: Restrict)
+
+  @@unique([offerId, version])
+  @@index([offerId, createdAt])
+}
+
+// Collaboration workspace and contract
+
+model Collaboration {
+  id                          String              @id @default(cuid())
+  offerId                     String?             @unique
+  campaignId                  String?
+  businessId                  String
+  creatorId                   String
+  status                      CollaborationStatus @default(NEGOTIATION)
+  progress                    Int                 @default(0)
+  version                     Int                 @default(1)
+  termsVersion                Int                 @default(1)
+  terms                       Json
+  tasks                       Json?
+  files                       Json?
+  timeline                    Json?
+  activity                    Json?
+  creatorAgreementApprovedAt  DateTime?
+  businessAgreementApprovedAt DateTime?
+  completedAt                 DateTime?
+  createdAt                   DateTime            @default(now())
+  updatedAt                   DateTime            @updatedAt
+
+  offer             WorkOffer?              @relation(fields: [offerId], references: [id], onDelete: SetNull)
+  campaign          Campaign?               @relation(fields: [campaignId], references: [id], onDelete: SetNull)
+  business          BusinessProfile         @relation(fields: [businessId], references: [id], onDelete: Restrict)
+  creator           CreatorProfile          @relation(fields: [creatorId], references: [id], onDelete: Restrict)
+  contract          Contract?
+  deliverables      Deliverable[]
+  conversation      Conversation?
+  payments          Payment[]
+  reviews           Review[]
+  agreementVersions AgreementVersion[]
+  workspaceTasks    CollaborationTask[]
+  workspaceFiles    CollaborationFile[]
+  activities        CollaborationActivity[]
+  showcasePost      ShowcasePost?
+
+  @@index([businessId, status])
+  @@index([creatorId, status])
+  @@index([campaignId])
+}
+
+model AgreementVersion {
+  id                 String    @id @default(cuid())
+  collaborationId    String
+  createdById        String
+  version            Int
+  terms              Json
+  changeNote         String?
+  lockedAt           DateTime?
+  creatorApprovedAt  DateTime?
+  businessApprovedAt DateTime?
+  createdAt          DateTime  @default(now())
+
+  collaboration Collaboration @relation(fields: [collaborationId], references: [id], onDelete: Cascade)
+  createdBy     User          @relation(fields: [createdById], references: [id], onDelete: Restrict)
+
+  @@unique([collaborationId, version])
+  @@index([collaborationId, createdAt])
+}
+
+model CollaborationTask {
+  id              String    @id @default(cuid())
+  collaborationId String
+  createdById     String
+  title           String
+  description     String?
+  ownerRole       String
+  dueAt           DateTime?
+  completedAt     DateTime?
+  createdAt       DateTime  @default(now())
+  updatedAt       DateTime  @updatedAt
+
+  collaboration Collaboration @relation(fields: [collaborationId], references: [id], onDelete: Cascade)
+  createdBy     User          @relation(fields: [createdById], references: [id], onDelete: Restrict)
+
+  @@index([collaborationId, completedAt])
+}
+
+model CollaborationFile {
+  id              String   @id @default(cuid())
+  collaborationId String
+  uploadedById    String
+  mediaAssetId    String?
+  name            String
+  url             String
+  mimeType        String?
+  sizeBytes       Int?
+  kind            String   @default("PROJECT")
+  createdAt       DateTime @default(now())
+
+  collaboration Collaboration @relation(fields: [collaborationId], references: [id], onDelete: Cascade)
+  uploadedBy    User          @relation(fields: [uploadedById], references: [id], onDelete: Restrict)
+  mediaAsset    MediaAsset?   @relation(fields: [mediaAssetId], references: [id], onDelete: SetNull)
+
+  @@index([collaborationId, createdAt])
+}
+
+model CollaborationActivity {
+  id              String   @id @default(cuid())
+  collaborationId String
+  actorId         String?
+  type            String
+  message         String
+  metadata        Json?
+  createdAt       DateTime @default(now())
+
+  collaboration Collaboration @relation(fields: [collaborationId], references: [id], onDelete: Cascade)
+  actor         User?         @relation(fields: [actorId], references: [id], onDelete: SetNull)
+
+  @@index([collaborationId, createdAt])
+}
+
+model Contract {
+  id               String         @id @default(cuid())
+  collaborationId  String         @unique
+  status           ContractStatus @default(DRAFT)
+  currentVersion   Int            @default(1)
+  creatorSignedAt  DateTime?
+  businessSignedAt DateTime?
+  activatedAt      DateTime?
+  terminatedAt     DateTime?
+  createdAt        DateTime       @default(now())
+  updatedAt        DateTime       @updatedAt
+
+  collaboration Collaboration     @relation(fields: [collaborationId], references: [id], onDelete: Cascade)
+  versions      ContractVersion[]
+
+  @@index([status, updatedAt])
+}
+
+model ContractVersion {
+  id                 String    @id @default(cuid())
+  contractId         String
+  version            Int
+  terms              Json
+  documentUrl        String?
+  changeNote         String?
+  createdById        String?
+  creatorApprovedAt  DateTime?
+  businessApprovedAt DateTime?
+  createdAt          DateTime  @default(now())
+
+  contract Contract @relation(fields: [contractId], references: [id], onDelete: Cascade)
+
+  @@unique([contractId, version])
+  @@index([contractId, createdAt])
+}
+
+model Deliverable {
+  id              String            @id @default(cuid())
+  collaborationId String
+  uploadedById    String
+  mediaAssetId    String?
+  title           String
+  note            String?
+  fileUrl         String
+  fileType        String?
+  version         Int               @default(1)
+  revisionOfId    String?
+  status          DeliverableStatus @default(SUBMITTED)
+  reviewNote      String?
+  reviewedAt      DateTime?
+  createdAt       DateTime          @default(now())
+  updatedAt       DateTime          @updatedAt
+
+  collaboration Collaboration @relation(fields: [collaborationId], references: [id], onDelete: Cascade)
+  uploadedBy    User          @relation(fields: [uploadedById], references: [id], onDelete: Restrict)
+  mediaAsset    MediaAsset?   @relation(fields: [mediaAssetId], references: [id], onDelete: SetNull)
+  revisionOf    Deliverable?  @relation("DeliverableRevisions", fields: [revisionOfId], references: [id], onDelete: SetNull)
+  revisions     Deliverable[] @relation("DeliverableRevisions")
+
+  @@index([collaborationId, status])
+  @@index([mediaAssetId])
+}
+
+// Messaging and notifications
+
+model Conversation {
+  id              String   @id @default(cuid())
+  collaborationId String?  @unique
+  title           String?
+  createdAt       DateTime @default(now())
+  updatedAt       DateTime @updatedAt
+
+  collaboration Collaboration?       @relation(fields: [collaborationId], references: [id], onDelete: SetNull)
+  members       ConversationMember[]
+  messages      Message[]
+}
+
+model ConversationMember {
+  id             String    @id @default(cuid())
+  conversationId String
+  userId         String
+  lastReadAt     DateTime?
+  mutedAt        DateTime?
+  joinedAt       DateTime  @default(now())
+
+  conversation Conversation @relation(fields: [conversationId], references: [id], onDelete: Cascade)
+  user         User         @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@unique([conversationId, userId])
+  @@index([userId, lastReadAt])
+}
+
+model Message {
+  id             String        @id @default(cuid())
+  conversationId String
+  senderId       String
+  body           String?
+  attachment     Json?
+  status         MessageStatus @default(SENT)
+  editedAt       DateTime?
+  deletedAt      DateTime?
+  createdAt      DateTime      @default(now())
+
+  conversation Conversation @relation(fields: [conversationId], references: [id], onDelete: Cascade)
+  sender       User         @relation(fields: [senderId], references: [id], onDelete: Restrict)
+
+  @@index([conversationId, createdAt])
+  @@index([senderId, createdAt])
+}
+
+model Notification {
+  id        String           @id @default(cuid())
+  userId    String
+  type      NotificationType
+  title     String
+  body      String
+  href      String?
+  data      Json?
+  readAt    DateTime?
+  createdAt DateTime         @default(now())
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([userId, readAt, createdAt])
+}
+
+// Library and social actions
+
+model Follow {
+  id         String            @id @default(cuid())
+  followerId String
+  targetType LibraryTargetType
+  targetId   String
+  createdAt  DateTime          @default(now())
+
+  follower User @relation(fields: [followerId], references: [id], onDelete: Cascade)
+
+  @@unique([followerId, targetType, targetId])
+  @@index([targetType, targetId, createdAt])
+}
+
+model SavedItem {
+  id         String            @id @default(cuid())
+  userId     String
+  targetType LibraryTargetType
+  targetId   String
+  createdAt  DateTime          @default(now())
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@unique([userId, targetType, targetId])
+  @@index([userId, createdAt])
+  @@index([targetType, targetId])
+}
+
+model RecentView {
+  id         String            @id @default(cuid())
+  userId     String
+  targetType LibraryTargetType
+  targetId   String
+  viewedAt   DateTime          @default(now())
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@unique([userId, targetType, targetId])
+  @@index([userId, viewedAt])
+}
+
+model ShareEvent {
+  id         String            @id @default(cuid())
+  userId     String?
+  targetType LibraryTargetType
+  targetId   String
+  channel    String?
+  createdAt  DateTime          @default(now())
+
+  user User? @relation(fields: [userId], references: [id], onDelete: SetNull)
+
+  @@index([targetType, targetId, createdAt])
+  @@index([userId, createdAt])
+}
+
+model Collection {
+  id          String               @id @default(cuid())
+  ownerId     String
+  name        String
+  description String?
+  coverUrl    String?
+  visibility  CollectionVisibility @default(PRIVATE)
+  shareToken  String?              @unique
+  isDefault   Boolean              @default(false)
+  createdAt   DateTime             @default(now())
+  updatedAt   DateTime             @updatedAt
+
+  owner User             @relation(fields: [ownerId], references: [id], onDelete: Cascade)
+  items CollectionItem[]
+
+  @@unique([ownerId, name])
+  @@index([ownerId, updatedAt])
+}
+
+model CollectionItem {
+  id           String            @id @default(cuid())
+  collectionId String
+  targetType   LibraryTargetType
+  targetId     String
+  note         String?
+  createdAt    DateTime          @default(now())
+
+  collection Collection @relation(fields: [collectionId], references: [id], onDelete: Cascade)
+
+  @@unique([collectionId, targetType, targetId])
+  @@index([targetType, targetId])
+}
+
+model ShowcasePost {
+  id              String         @id @default(cuid())
+  creatorId       String
+  collaborationId String?        @unique
+  portfolioItemId String?
+  title           String
+  description     String?
+  category        String?
+  mediaType       MediaType
+  mediaUrl        String
+  thumbnailUrl    String?
+  status          ShowcaseStatus @default(DRAFT)
+  publishedAt     DateTime?
+  archivedAt      DateTime?
+  createdAt       DateTime       @default(now())
+  updatedAt       DateTime       @updatedAt
+
+  creator       CreatorProfile     @relation(fields: [creatorId], references: [id], onDelete: Cascade)
+  portfolioItem PortfolioItem?     @relation(fields: [portfolioItemId], references: [id], onDelete: SetNull)
+  reactions     ShowcaseReaction[]
+  collaboration Collaboration?     @relation(fields: [collaborationId], references: [id], onDelete: SetNull)
+
+  @@index([status, publishedAt])
+  @@index([creatorId, status, createdAt])
+  @@index([category, status])
+}
+
+model ShowcaseReaction {
+  id         String               @id @default(cuid())
+  userId     String
+  showcaseId String
+  type       ShowcaseReactionType @default(LIKE)
+  createdAt  DateTime             @default(now())
+
+  user     User         @relation(fields: [userId], references: [id], onDelete: Cascade)
+  showcase ShowcasePost @relation(fields: [showcaseId], references: [id], onDelete: Cascade)
+
+  @@unique([userId, showcaseId, type])
+  @@index([showcaseId, type, createdAt])
+}
+
+model CreatorShortlist {
+  id         String   @id @default(cuid())
+  businessId String
+  creatorId  String
+  campaignId String?
+  contextKey String   @default("general")
+  note       String?
+  createdAt  DateTime @default(now())
+
+  business BusinessProfile @relation(fields: [businessId], references: [id], onDelete: Cascade)
+  creator  CreatorProfile  @relation(fields: [creatorId], references: [id], onDelete: Cascade)
+  campaign Campaign?       @relation(fields: [campaignId], references: [id], onDelete: Cascade)
+
+  @@unique([businessId, creatorId, contextKey])
+  @@index([businessId, campaignId, createdAt])
+  @@index([creatorId, createdAt])
+}
+
+model CreatorComparison {
+  id         String   @id @default(cuid())
+  businessId String
+  creatorId  String
+  campaignId String?
+  contextKey String   @default("general")
+  createdAt  DateTime @default(now())
+
+  business BusinessProfile @relation(fields: [businessId], references: [id], onDelete: Cascade)
+  creator  CreatorProfile  @relation(fields: [creatorId], references: [id], onDelete: Cascade)
+  campaign Campaign?       @relation(fields: [campaignId], references: [id], onDelete: Cascade)
+
+  @@unique([businessId, creatorId, contextKey])
+  @@index([businessId, campaignId, createdAt])
+}
+
+model CampaignInvitation {
+  id          String           @id @default(cuid())
+  businessId  String
+  creatorId   String
+  campaignId  String
+  message     String?
+  status      InvitationStatus @default(PENDING)
+  respondedAt DateTime?
+  createdAt   DateTime         @default(now())
+  updatedAt   DateTime         @updatedAt
+
+  business BusinessProfile @relation(fields: [businessId], references: [id], onDelete: Cascade)
+  creator  CreatorProfile  @relation(fields: [creatorId], references: [id], onDelete: Cascade)
+  campaign Campaign        @relation(fields: [campaignId], references: [id], onDelete: Cascade)
+
+  @@unique([campaignId, creatorId])
+  @@index([creatorId, status, createdAt])
+  @@index([businessId, status, createdAt])
+}
+
+// Finance, reviews, trust and analytics
+
+model Payment {
+  id               String        @id @default(cuid())
+  collaborationId  String
+  parentId         String?
+  type             PaymentType
+  status           PaymentStatus @default(PENDING)
+  amount           Decimal       @db.Decimal(18, 2)
+  platformFee      Decimal       @default(0) @db.Decimal(18, 2)
+  currency         String        @default("MNT")
+  provider         String?
+  providerRef      String?       @unique
+  paymentMethodRef String?
+  failureReason    String?
+  metadata         Json?
+  processedAt      DateTime?
+  createdAt        DateTime      @default(now())
+  updatedAt        DateTime      @updatedAt
+
+  collaboration  Collaboration          @relation(fields: [collaborationId], references: [id], onDelete: Restrict)
+  parent         Payment?               @relation("PaymentAdjustments", fields: [parentId], references: [id], onDelete: SetNull)
+  adjustments    Payment[]              @relation("PaymentAdjustments")
+  providerEvents PaymentProviderEvent[]
+  refundRequests PaymentRefund[]
+  payoutRequests PaymentPayout[]
+
+  @@index([collaborationId, type, status])
+  @@index([status, createdAt])
+}
+
+model PaymentProviderEvent {
+  id              String    @id @default(cuid())
+  providerEventId String    @unique
+  paymentId       String?
+  provider        String
+  eventType       String
+  payload         Json
+  payloadHash     String
+  processedAt     DateTime?
+  failureReason   String?
+  createdAt       DateTime  @default(now())
+
+  payment Payment? @relation(fields: [paymentId], references: [id], onDelete: SetNull)
+
+  @@index([paymentId, createdAt])
+  @@index([eventType, createdAt])
+}
+
+model PaymentMethod {
+  id        String   @id @default(cuid())
+  userId    String
+  provider  String
+  tokenRef  String   @unique
+  brand     String?
+  last4     String?
+  expMonth  Int?
+  expYear   Int?
+  isDefault Boolean  @default(false)
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([userId, isDefault])
+}
+
+model PaymentRefund {
+  id          String        @id @default(cuid())
+  paymentId   String
+  requesterId String
+  amount      Decimal       @db.Decimal(18, 2)
+  reason      String
+  status      PaymentStatus @default(PENDING)
+  providerRef String?       @unique
+  processedAt DateTime?
+  createdAt   DateTime      @default(now())
+  updatedAt   DateTime      @updatedAt
+
+  payment   Payment @relation(fields: [paymentId], references: [id], onDelete: Restrict)
+  requester User    @relation(fields: [requesterId], references: [id], onDelete: Restrict)
+
+  @@index([paymentId, status])
+}
+
+model PaymentPayout {
+  id          String        @id @default(cuid())
+  paymentId   String
+  creatorId   String
+  amount      Decimal       @db.Decimal(18, 2)
+  status      PaymentStatus @default(PENDING)
+  providerRef String?       @unique
+  processedAt DateTime?
+  createdAt   DateTime      @default(now())
+  updatedAt   DateTime      @updatedAt
+
+  payment Payment @relation(fields: [paymentId], references: [id], onDelete: Restrict)
+  creator User    @relation(fields: [creatorId], references: [id], onDelete: Restrict)
+
+  @@index([creatorId, status])
+}
+
+model OutboxEvent {
+  id          String    @id @default(cuid())
+  topic       String
+  aggregateId String
+  payload     Json
+  attempts    Int       @default(0)
+  processedAt DateTime?
+  createdAt   DateTime  @default(now())
+
+  @@index([processedAt, createdAt])
+  @@index([topic, aggregateId])
+}
+
+model Review {
+  id              String    @id @default(cuid())
+  collaborationId String
+  reviewerId      String
+  subjectId       String
+  rating          Int
+  comment         String?
+  publishedAt     DateTime?
+  createdAt       DateTime  @default(now())
+  updatedAt       DateTime  @updatedAt
+
+  collaboration Collaboration @relation(fields: [collaborationId], references: [id], onDelete: Cascade)
+  reviewer      User          @relation("ReviewAuthor", fields: [reviewerId], references: [id], onDelete: Restrict)
+  subject       User          @relation("ReviewSubject", fields: [subjectId], references: [id], onDelete: Restrict)
+
+  @@unique([collaborationId, reviewerId])
+  @@index([subjectId, publishedAt])
+}
+
+model TrustCase {
+  id              String          @id @default(cuid())
+  kind            TrustCaseKind
+  status          TrustCaseStatus @default(OPEN)
+  priority        Int             @default(0)
+  reporterId      String?
+  assignedAdminId String?
+  targetType      String
+  targetId        String
+  reason          String
+  evidence        Json?
+  resolution      String?
+  resolvedAt      DateTime?
+  createdAt       DateTime        @default(now())
+  updatedAt       DateTime        @updatedAt
+
+  reporter      User? @relation("CaseReporter", fields: [reporterId], references: [id], onDelete: SetNull)
+  assignedAdmin User? @relation("CaseAssignee", fields: [assignedAdminId], references: [id], onDelete: SetNull)
+
+  @@index([kind, status, priority])
+  @@index([targetType, targetId])
+}
+
+model AnalyticsEvent {
+  id           String   @id @default(cuid())
+  userId       String?
+  name         String
+  sessionId    String?
+  resourceType String?
+  resourceId   String?
+  properties   Json?
+  occurredAt   DateTime @default(now())
+
+  user User? @relation(fields: [userId], references: [id], onDelete: SetNull)
+
+  @@index([name, occurredAt])
+  @@index([resourceType, resourceId, occurredAt])
+  @@index([userId, occurredAt])
+}
+
+model AdminAction {
+  id         String   @id @default(cuid())
+  actorId    String
+  action     String
+  targetType String
+  targetId   String
+  reason     String
+  before     Json?
+  after      Json?
+  ipAddress  String?
+  createdAt  DateTime @default(now())
+
+  actor User @relation("AdminActor", fields: [actorId], references: [id], onDelete: Restrict)
+
+  @@index([actorId, createdAt])
+  @@index([targetType, targetId, createdAt])
+}
+
+enum UserRole {
+  VIEWER
+  CREATOR
+  BUSINESS
+  ADMIN
+}
+
+enum AccountStatus {
+  PENDING_VERIFICATION
+  ACTIVE
+  SUSPENDED
+  BANNED
+}
+
+enum VerificationPurpose {
+  EMAIL_VERIFICATION
+  PASSWORD_RESET
+}
+
+enum MediaPurpose {
+  AVATAR
+  COVER
+  LOGO
+  PORTFOLIO
+  COLLABORATION
+  DELIVERABLE
+}
+
+enum PortfolioStatus {
+  DRAFT
+  PUBLISHED
+  ARCHIVED
+}
+
+enum VerificationStatus {
+  UNVERIFIED
+  PENDING
+  VERIFIED
+  REJECTED
+}
+
+enum SocialPlatform {
+  INSTAGRAM
+  TIKTOK
+  YOUTUBE
+  FACEBOOK
+  X
+  OTHER
+}
+
+enum MediaType {
+  IMAGE
+  VIDEO
+  DOCUMENT
+}
+
+enum CampaignStatus {
+  DRAFT
+  OPEN
+  PAUSED
+  IN_PROGRESS
+  COMPLETED
+  CANCELLED
+  ARCHIVED
+}
+
+enum ProposalStatus {
+  SUBMITTED
+  SHORTLISTED
+  COUNTERED
+  ACCEPTED
+  REJECTED
+  WITHDRAWN
+}
+
+enum OfferStatus {
+  PENDING_CREATOR_RESPONSE
+  INTERESTED
+  COUNTER_PROPOSAL_SENT
+  CHANGES_REQUESTED
+  APPROVED
+  DECLINED
+  DECLINED_BY_BUSINESS
+  CANCELLED
+}
+
+enum CollaborationStatus {
+  NEGOTIATION
+  AGREEMENT_REVIEW
+  CONTRACT_REVIEW
+  PAYMENT_PENDING
+  IN_PROGRESS
+  IN_REVIEW
+  COMPLETED
+  CANCELLED
+}
+
+enum ContractStatus {
+  DRAFT
+  PENDING_APPROVAL
+  CHANGES_REQUESTED
+  ACTIVE
+  TERMINATED
+}
+
+enum DeliverableStatus {
+  SUBMITTED
+  IN_REVIEW
+  REVISION_REQUESTED
+  APPROVED
+}
+
+enum MessageStatus {
+  SENT
+  DELIVERED
+  READ
+}
+
+enum NotificationType {
+  WORK_OFFER
+  PROPOSAL
+  CONTRACT
+  PAYMENT
+  DELIVERABLE
+  MESSAGE
+  SYSTEM
+}
+
+enum CollectionVisibility {
+  PRIVATE
+  UNLISTED
+  PUBLIC
+}
+
+enum LibraryTargetType {
+  CREATOR
+  BUSINESS
+  CAMPAIGN
+  PORTFOLIO
+  SHOWCASE
+  CONTENT
+}
+
+enum ShowcaseStatus {
+  DRAFT
+  PUBLISHED
+  ARCHIVED
+}
+
+enum ShowcaseReactionType {
+  LIKE
+}
+
+enum InvitationStatus {
+  PENDING
+  ACCEPTED
+  DECLINED
+  CANCELLED
+}
+
+enum PaymentType {
+  FUNDING
+  MILESTONE_RELEASE
+  PAYOUT
+  REFUND
+  COMMISSION
+}
+
+enum PaymentStatus {
+  PENDING
+  PROCESSING
+  FUNDED
+  RELEASED
+  PAID
+  FAILED
+  REFUNDED
+  CANCELLED
+}
+
+enum TrustCaseKind {
+  REPORT
+  DISPUTE
+  VERIFICATION
+  MODERATION
+}
+
+enum TrustCaseStatus {
+  OPEN
+  UNDER_REVIEW
+  WAITING_FOR_USER
+  ESCALATED
+  RESOLVED
+  DISMISSED
+}

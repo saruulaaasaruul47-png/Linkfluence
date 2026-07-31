@@ -1,0 +1,11 @@
+-- AlterEnum
+ALTER TYPE "AuthTokenType" ADD VALUE 'PASSWORD_RESET_GRANT';
+
+-- AlterTable
+ALTER TABLE "AuthToken" ADD COLUMN     "attempts" INTEGER NOT NULL DEFAULT 0,
+ADD COLUMN     "lastSentAt" TIMESTAMP(3) NOT NULL DEFAULT CURRENT_TIMESTAMP,
+ADD COLUMN     "metadata" JSONB;
+
+-- AlterTable
+ALTER TABLE "User" ADD COLUMN     "failedLoginAttempts" INTEGER NOT NULL DEFAULT 0,
+ADD COLUMN     "lockedUntil" TIMESTAMP(3);
