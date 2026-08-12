@@ -17,6 +17,9 @@ credentials*.json
 seed-credentials.md
 **/seed-credentials.md
 
+# Local planning, reports and presentation notes kept at repository root
+/*.md
+
 # Build output and generated code
 **/dist/
 **/dist-ssr/
