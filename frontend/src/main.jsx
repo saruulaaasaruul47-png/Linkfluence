@@ -11,6 +11,7 @@ import './styles/globals.css'
 import { RouteMeta } from './components/RouteMeta.jsx'
 import { DashboardDataProvider } from './context/DashboardDataProvider.jsx'
 import { ErrorBoundary } from './components/ErrorBoundary.jsx'
+import { LanguageProvider } from './context/LanguageProvider.jsx'
 
 const lazyNamed = (loader, name) => lazy(() => loader().then((module) => ({ default: module[name] })))
 
@@ -24,18 +25,19 @@ const VerifyEmailPage = lazy(() => import('./pages/auth/VerifyEmailPage.jsx'))
 const CreatorOnboardingPage = lazy(() => import('./pages/onboarding/CreatorOnboardingPage.jsx'))
 const BusinessOnboardingPage = lazy(() => import('./pages/onboarding/BusinessOnboardingPage.jsx'))
 const MarketplaceLayout = lazyNamed(() => import('./components/marketplace/MarketplaceLayout.jsx'), 'MarketplaceLayout')
+const DiscoveryLayout = lazyNamed(() => import('./components/DiscoveryLayout.jsx'), 'DiscoveryLayout')
 const DiscoverPage = lazy(() => import('./pages/marketplace/DiscoverPage.jsx'))
 const CreatorSearchPage = lazyNamed(() => import('./pages/marketplace/SearchPages.jsx'), 'CreatorSearchPage')
 const BusinessSearchPage = lazyNamed(() => import('./pages/marketplace/SearchPages.jsx'), 'BusinessSearchPage')
 const CampaignSearchPage = lazyNamed(() => import('./pages/marketplace/SearchPages.jsx'), 'CampaignSearchPage')
 const GlobalSearchPage = lazyNamed(() => import('./pages/marketplace/SearchPages.jsx'), 'GlobalSearchPage')
-const CategoriesPage = lazyNamed(() => import('./pages/marketplace/LibraryPages.jsx'), 'CategoriesPage')
 const CollectionDetailPage = lazyNamed(() => import('./pages/marketplace/LibraryPages.jsx'), 'CollectionDetailPage')
 const CollectionsPage = lazyNamed(() => import('./pages/marketplace/LibraryPages.jsx'), 'CollectionsPage')
 const FollowingPage = lazyNamed(() => import('./pages/marketplace/LibraryPages.jsx'), 'FollowingPage')
 const SavedPage = lazyNamed(() => import('./pages/marketplace/LibraryPages.jsx'), 'SavedPage')
 const ShowcaseDetailPage = lazyNamed(() => import('./pages/marketplace/LibraryPages.jsx'), 'ShowcaseDetailPage')
 const ShowcasePage = lazyNamed(() => import('./pages/marketplace/LibraryPages.jsx'), 'ShowcasePage')
+const ContentPostPage = lazyNamed(() => import('./pages/marketplace/LibraryPages.jsx'), 'ContentPostPage')
 const BusinessProfilePage = lazyNamed(() => import('./pages/marketplace/ProfilePages.jsx'), 'BusinessProfilePage')
 const CreatorProfilePage = lazyNamed(() => import('./pages/marketplace/ProfilePages.jsx'), 'CreatorProfilePage')
 const MarketplaceCampaignPage = lazy(() => import('./pages/marketplace/MarketplaceCampaignPage.jsx'))
@@ -52,12 +54,14 @@ const CreatorProposalsPage = lazyNamed(() => import('./pages/dashboard/WorkflowP
 const ProposalDetailPage = lazyNamed(() => import('./pages/dashboard/WorkflowPages.jsx'), 'ProposalDetailPage')
 const ProposalListPage = lazyNamed(() => import('./pages/dashboard/WorkflowPages.jsx'), 'ProposalListPage')
 const BusinessCreatorsPage = lazyNamed(() => import('./pages/dashboard/DashboardUtilityPages.jsx'), 'BusinessCreatorsPage')
-const PortfolioPage = lazyNamed(() => import('./pages/dashboard/DashboardUtilityPages.jsx'), 'PortfolioPage')
-const SettingsPage = lazyNamed(() => import('./pages/dashboard/DashboardUtilityPages.jsx'), 'SettingsPage')
+const PortfolioPage = lazyNamed(() => import('./pages/dashboard/PersistedUtilityPages.jsx'), 'PortfolioPage')
+const SettingsPage = lazyNamed(() => import('./pages/dashboard/PersistedUtilityPages.jsx'), 'SettingsPage')
 const MessagesPage = lazyNamed(() => import('./pages/dashboard/MessagingPages.jsx'), 'MessagesPage')
 const NotificationsPage = lazyNamed(() => import('./pages/dashboard/MessagingPages.jsx'), 'NotificationsPage')
 const AnalyticsPage = lazyNamed(() => import('./pages/dashboard/PaymentAnalyticsPages.jsx'), 'AnalyticsPage')
-const WalletPage = lazyNamed(() => import('./pages/dashboard/PaymentAnalyticsPages.jsx'), 'WalletPage')
+const WalletPage = lazyNamed(() => import('./pages/dashboard/ApiWalletPage.jsx'), 'WalletPage')
+const ContentManagementPage = lazy(() => import('./pages/dashboard/ContentManagementPage.jsx'))
+const ChannelShowcaseStudioPage = lazy(() => import('./pages/dashboard/ChannelShowcaseStudioPage.jsx'))
 const CreatorWorkRequestsPage = lazy(() => import('./pages/collaboration/CreatorWorkRequestsPage.jsx'))
 const BusinessResponsesPage = lazy(() => import('./pages/collaboration/BusinessResponsesPage.jsx'))
 const CollaborationWorkspacePage = lazy(() => import('./pages/collaboration/CollaborationWorkspacePage.jsx'))
@@ -70,8 +74,7 @@ const AdminChannelDetailPage = lazyNamed(() => import('./pages/admin/AdminManage
 const AdminContractDetailPage = lazyNamed(() => import('./pages/admin/AdminManagementPages.jsx'), 'AdminContractDetailPage')
 const AdminManagementPage = lazyNamed(() => import('./pages/admin/AdminManagementPages.jsx'), 'AdminManagementPage')
 const AdminUserDetailPage = lazyNamed(() => import('./pages/admin/AdminManagementPages.jsx'), 'AdminUserDetailPage')
-const AdminPaymentsPage = lazyNamed(() => import('./pages/admin/AdminFinancePages.jsx'), 'AdminPaymentsPage')
-const AdminRefundsPage = lazyNamed(() => import('./pages/admin/AdminFinancePages.jsx'), 'AdminRefundsPage')
+const AdminFinancePage = lazyNamed(() => import('./pages/admin/AdminFinancePages.jsx'), 'AdminFinancePage')
 const AdminDisputeDetailPage = lazyNamed(() => import('./pages/admin/AdminTrustPages.jsx'), 'AdminDisputeDetailPage')
 const AdminDisputesPage = lazyNamed(() => import('./pages/admin/AdminTrustPages.jsx'), 'AdminDisputesPage')
 const AdminModerationPage = lazyNamed(() => import('./pages/admin/AdminTrustPages.jsx'), 'AdminModerationPage')
@@ -101,8 +104,9 @@ function RouteFallback() {
 createRoot(document.getElementById('root')).render(
   <StrictMode>
     <BrowserRouter>
-      <RouteMeta />
-      <ToastProvider>
+      <LanguageProvider>
+        <RouteMeta />
+        <ToastProvider>
         <div className="app-film-grain" aria-hidden="true" />
         <ErrorBoundary><AuthProvider><MarketplaceProvider><DashboardDataProvider><CollaborationProvider><Suspense fallback={<RouteFallback />}><Routes>
           <Route path="/" element={<LandingPage />} />
@@ -118,7 +122,6 @@ createRoot(document.getElementById('root')).render(
             <Route path="/onboarding/business" element={<BusinessOnboardingPage />} />
           </Route>
           <Route element={<MarketplaceLayout />}>
-            <Route path="/discover" element={<DiscoverPage />} />
             <Route path="/search/creators" element={<CreatorSearchPage />} />
             <Route path="/creator-search" element={<Navigate to="/search/creators" replace />} />
             <Route path="/search/businesses" element={<BusinessSearchPage />} />
@@ -126,9 +129,7 @@ createRoot(document.getElementById('root')).render(
             <Route path="/search/campaigns" element={<CampaignSearchPage />} />
             <Route path="/search" element={<GlobalSearchPage />} />
             <Route path="/campaign-search" element={<Navigate to="/search/campaigns" replace />} />
-            <Route path="/showcase" element={<ShowcasePage />} />
-            <Route path="/showcase/:id" element={<ShowcaseDetailPage />} />
-            <Route path="/categories" element={<CategoriesPage />} />
+            <Route path="/posts/:id" element={<ContentPostPage />} />
             <Route path="/creators/:id" element={<CreatorProfilePage />} />
             <Route path="/businesses/:id" element={<BusinessProfilePage />} />
             <Route path="/campaigns/:id" element={<MarketplaceCampaignPage />} />
@@ -140,11 +141,18 @@ createRoot(document.getElementById('root')).render(
               <Route path="/account" element={<AccountPage />} />
             </Route>
           </Route>
+          <Route element={<DiscoveryLayout />}>
+            <Route path="/discover" element={<DiscoverPage />} />
+            <Route path="/showcase" element={<ShowcasePage />} />
+            <Route path="/showcase/:id" element={<ShowcaseDetailPage />} />
+          </Route>
           <Route element={<ProtectedRoute role="creator" />}>
             <Route element={<DashboardLayout role="creator" />}>
               <Route path="/creator/dashboard" element={<CreatorDashboardPage />} />
               <Route path="/creator/discover" element={<CampaignSearchPage dashboard />} />
               <Route path="/creator/portfolio" element={<PortfolioPage />} />
+              <Route path="/creator/posts" element={<ContentManagementPage role="creator" />} />
+              <Route path="/creator/showcase" element={<ChannelShowcaseStudioPage role="creator" />} />
               <Route path="/creator/campaigns" element={<CampaignListPage role="creator" />} />
               <Route path="/creator/campaigns/:id" element={<CampaignDetailPage role="creator" />} />
               <Route path="/creator/invitations" element={<Navigate to="/creator/work-requests" replace />} />
@@ -166,6 +174,8 @@ createRoot(document.getElementById('root')).render(
             <Route element={<DashboardLayout role="business" />}>
               <Route path="/business/dashboard" element={<BusinessDashboardPage />} />
               <Route path="/business/campaigns" element={<CampaignListPage role="business" />} />
+              <Route path="/business/posts" element={<ContentManagementPage role="business" />} />
+              <Route path="/business/showcase" element={<ChannelShowcaseStudioPage role="business" />} />
               <Route path="/business/campaigns/new" element={<CreateCampaignPage />} />
               <Route path="/business/campaigns/:id" element={<CampaignDetailPage role="business" />} />
               <Route path="/business/creators" element={<BusinessCreatorsPage />} />
@@ -199,10 +209,18 @@ createRoot(document.getElementById('root')).render(
               <Route path="/admin/campaigns/:campaignId" element={<AdminCampaignDetailPage />} />
               <Route path="/admin/contracts" element={<AdminManagementPage section="contracts" />} />
               <Route path="/admin/contracts/:contractId" element={<AdminContractDetailPage />} />
-              <Route path="/admin/payments" element={<AdminPaymentsPage />} />
-              <Route path="/admin/transactions" element={<Navigate to="/admin/payments?view=transactions" replace />} />
-              <Route path="/admin/commissions" element={<Navigate to="/admin/payments?view=commissions" replace />} />
-              <Route path="/admin/refunds" element={<AdminRefundsPage />} />
+              <Route path="/admin/finance" element={<AdminFinancePage section="overview" />} />
+              <Route path="/admin/finance/wallet" element={<AdminFinancePage section="wallet" />} />
+              <Route path="/admin/finance/transactions" element={<AdminFinancePage section="transactions" />} />
+              <Route path="/admin/finance/revenue" element={<Navigate to="/admin/finance" replace />} />
+              <Route path="/admin/finance/payouts" element={<Navigate to="/admin/finance/wallet" replace />} />
+              <Route path="/admin/finance/refunds" element={<Navigate to="/admin/finance/transactions?view=refunds" replace />} />
+              <Route path="/admin/payments" element={<Navigate to="/admin/finance" replace />} />
+              <Route path="/admin/payouts" element={<Navigate to="/admin/finance/wallet" replace />} />
+              <Route path="/admin/refunds" element={<Navigate to="/admin/finance/transactions?view=refunds" replace />} />
+              <Route path="/admin/transactions" element={<Navigate to="/admin/finance/transactions" replace />} />
+              <Route path="/admin/commissions" element={<Navigate to="/admin/finance" replace />} />
+              <Route path="/admin/barter-fees" element={<Navigate to="/admin/finance" replace />} />
               <Route path="/admin/disputes" element={<AdminDisputesPage />} />
               <Route path="/admin/disputes/:disputeId" element={<AdminDisputeDetailPage />} />
               <Route path="/admin/reports" element={<AdminReportsPage />} />
@@ -218,7 +236,8 @@ createRoot(document.getElementById('root')).render(
           </Route>
           <Route path="*" element={<NotFoundPage />} />
         </Routes></Suspense><Suspense fallback={null}><WorkOfferDialog /></Suspense></CollaborationProvider></DashboardDataProvider></MarketplaceProvider></AuthProvider></ErrorBoundary>
-      </ToastProvider>
+        </ToastProvider>
+      </LanguageProvider>
     </BrowserRouter>
   </StrictMode>,
 )

@@ -17,9 +17,9 @@ export function signAccessToken(user) {
   );
 }
 
-export function signRefreshToken(userId, jti) {
+export function signRefreshToken(userId, jti, persistent = true) {
   const token = jwt.sign(
-    { type: 'refresh' },
+    { type: 'refresh', persistent },
     env.jwtRefreshSecret,
     { subject: userId, jwtid: jti, expiresIn: env.jwtRefreshExpiresIn },
   );

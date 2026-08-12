@@ -3,7 +3,10 @@ import { prisma } from '../../config/database.js';
 const creatorInclude = {
   creator: {
     include: {
-      socialAccounts: { orderBy: { followerCount: 'desc' } },
+      socialAccounts: {
+        include: { stats: { orderBy: { capturedAt: 'desc' }, take: 1 } },
+        orderBy: { followerCount: 'desc' },
+      },
     },
   },
   campaign: { select: { id: true, slug: true, title: true } },
@@ -40,6 +43,10 @@ const invitationInclude = {
       budgetMax: true,
       currency: true,
       applicationDeadline: true,
+      platforms: true,
+      deliverables: true,
+      deadline: true,
+      currency: true,
     },
   },
 };
@@ -167,5 +174,20 @@ export const sourcingRepository = {
 
   updateInvitation(id, data) {
     return prisma.campaignInvitation.update({ where: { id }, data, include: invitationInclude });
+  },
+
+  async respondInvitation(id, data, orchestrate = null) {
+    return prisma.$transaction(async (tx) => {
+      const changed = await tx.campaignInvitation.updateMany({
+        where: { id, status: 'PENDING' },
+        data,
+      });
+      if (changed.count !== 1) return null;
+      const workspaceId = orchestrate ? await orchestrate(tx) : null;
+      return {
+        record: await tx.campaignInvitation.findUnique({ where: { id }, include: invitationInclude }),
+        workspaceId,
+      };
+    });
   },
 };

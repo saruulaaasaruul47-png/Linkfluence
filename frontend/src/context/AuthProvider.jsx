@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useState } from 'react'
+import { useCallback, useEffect, useRef, useState } from 'react'
 import { authApi } from '../api/auth.api'
 import { parseAuthError } from '../api/authError'
 import { resolveMediaUrl } from '../api/mediaUrl'
@@ -24,12 +24,15 @@ export function AuthProvider({ children }) {
   const [isInitializing, setIsInitializing] = useState(true)
   const [isLoading, setIsLoading] = useState(false)
   const [authError, setAuthError] = useState(null)
+  const authVersion = useRef(0)
+  const pendingActions = useRef(0)
 
   useEffect(() => {
     return tokenStore.subscribe(setAccessToken)
   }, [])
 
   const resetAuth = useCallback(() => {
+    authVersion.current += 1
     tokenStore.clear()
     setUser(null)
     setAuthError(null)
@@ -46,9 +49,10 @@ export function AuthProvider({ children }) {
   }, [resetAuth])
 
   const loadCurrentUser = useCallback(async () => {
+    const version = authVersion.current
     const result = await authApi.getCurrentUser()
     const nextUser = normalizeUser(result.user)
-    setUser(nextUser)
+    if (version === authVersion.current) setUser(nextUser)
     return nextUser
   }, [])
 
@@ -59,28 +63,35 @@ export function AuthProvider({ children }) {
   }, [])
 
   const refreshSession = useCallback(async () => {
+    const version = authVersion.current
     if (!restorePromise) {
       restorePromise = (async () => {
         const refreshed = await authApi.refreshAccessToken()
-        tokenStore.set(refreshed.accessToken)
         const current = await authApi.getCurrentUser()
-        return normalizeUser(current.user)
+        return {
+          accessToken: refreshed.accessToken,
+          user: normalizeUser(current.user),
+        }
       })().finally(() => {
         restorePromise = null
       })
     }
-    const nextUser = await restorePromise
-    setUser(nextUser)
-    return nextUser
+    const restored = await restorePromise
+    if (version === authVersion.current) {
+      tokenStore.set(restored.accessToken)
+      setUser(restored.user)
+    }
+    return restored.user
   }, [])
 
   useEffect(() => {
     let active = true
+    const version = authVersion.current
     async function restore() {
       try {
         await refreshSession()
       } catch {
-        if (active) resetAuth()
+        if (active && version === authVersion.current) resetAuth()
       } finally {
         if (active) setIsInitializing(false)
       }
@@ -92,6 +103,7 @@ export function AuthProvider({ children }) {
   }, [refreshSession, resetAuth])
 
   const runAuthAction = async (action) => {
+    pendingActions.current += 1
     setIsLoading(true)
     setAuthError(null)
     try {
@@ -101,39 +113,59 @@ export function AuthProvider({ children }) {
       setAuthError(parsed)
       throw parsed
     } finally {
-      setIsLoading(false)
+      pendingActions.current = Math.max(0, pendingActions.current - 1)
+      if (pendingActions.current === 0) setIsLoading(false)
     }
   }
 
   const register = (payload) => runAuthAction(() => authApi.register(payload))
 
   const verifyEmail = (payload) => runAuthAction(async () => {
+    const version = ++authVersion.current
     const result = await authApi.verifyEmail(payload)
+    if (version !== authVersion.current) return null
     tokenStore.set(result.accessToken)
     const nextUser = normalizeUser(result.user)
     setUser(nextUser)
+    setIsInitializing(false)
     return nextUser
   })
 
   const resendOtp = (payload) => runAuthAction(() => authApi.resendOtp(payload))
 
   const login = (payload) => runAuthAction(async () => {
+    const version = ++authVersion.current
     const result = await authApi.login(payload)
+    if (version !== authVersion.current) return null
     tokenStore.set(result.accessToken)
     const nextUser = normalizeUser(result.user)
     setUser(nextUser)
+    setIsInitializing(false)
+    return nextUser
+  })
+
+  const loginWithGoogle = (credential) => runAuthAction(async () => {
+    const version = ++authVersion.current
+    const result = await authApi.googleLogin(credential)
+    if (version !== authVersion.current) return null
+    tokenStore.set(result.accessToken)
+    const nextUser = normalizeUser(result.user)
+    setUser(nextUser)
+    setIsInitializing(false)
     return nextUser
   })
 
   const logout = async () => {
+    pendingActions.current += 1
     setIsLoading(true)
+    resetAuth()
     try {
       await authApi.logout()
     } catch {
       // Local authentication state must still be cleared when the API is unavailable.
     } finally {
-      resetAuth()
-      setIsLoading(false)
+      pendingActions.current = Math.max(0, pendingActions.current - 1)
+      if (pendingActions.current === 0) setIsLoading(false)
     }
   }
 
@@ -150,6 +182,7 @@ export function AuthProvider({ children }) {
     verifyEmail,
     resendOtp,
     login,
+    loginWithGoogle,
     logout,
     signIn: login,
     signOut: logout,

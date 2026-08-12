@@ -7,11 +7,13 @@
     "dev": "vite",
     "build": "vite build",
     "lint": "eslint .",
-    "test": "node --test",
-    "check": "npm run lint && npm run test && npm run build",
+    "test": "node --test test/*.test.mjs && vitest run",
+    "check": "npm run lint && npm run test && npm run build && npm run check:bundle",
+    "check:bundle": "node scripts/check-bundle-budget.mjs",
     "preview": "vite preview"
   },
   "dependencies": {
+    "@calendarjs/ce": "^1.1.0",
     "@tailwindcss/vite": "^4.3.3",
     "axios": "^1.18.1",
     "lucide-react": "^1.25.0",
@@ -19,10 +21,14 @@
     "react": "^19.2.7",
     "react-dom": "^19.2.7",
     "react-router-dom": "^7.18.1",
+    "socket.io-client": "^4.8.3",
     "tailwindcss": "^4.3.3"
   },
   "devDependencies": {
     "@eslint/js": "^10.0.1",
+    "@testing-library/jest-dom": "^7.0.0",
+    "@testing-library/react": "^16.3.2",
+    "@testing-library/user-event": "^14.6.1",
     "@types/react": "^19.2.17",
     "@types/react-dom": "^19.2.3",
     "@vitejs/plugin-react": "^6.0.3",
@@ -30,6 +36,8 @@
     "eslint-plugin-react-hooks": "^7.1.1",
     "eslint-plugin-react-refresh": "^0.5.3",
     "globals": "^17.7.0",
-    "vite": "^8.1.1"
+    "jsdom": "^30.0.1",
+    "vite": "^8.1.1",
+    "vitest": "^4.1.10"
   }
 }

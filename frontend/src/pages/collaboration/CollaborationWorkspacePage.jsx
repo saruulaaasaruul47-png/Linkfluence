@@ -1,4 +1,4 @@
-import { useState } from 'react'
+import { useEffect, useState } from 'react'
 import {
   Activity,
   AlertCircle,
@@ -8,7 +8,6 @@ import {
   CalendarDays,
   Check,
   CheckCircle2,
-  ChevronRight,
   Circle,
   CircleDollarSign,
   Clock3,
@@ -42,22 +41,47 @@ import {
   Video,
 } from 'lucide-react'
 import { useNavigate, useParams } from 'react-router-dom'
-import { DashboardPage, Progress } from '../../components/dashboard/DashboardUI'
-import { AuroraBackground, Badge, Button, FileUpload, Input, SpotlightCard, Textarea, useToast } from '../../components/ui'
+import { DashboardPage } from '../../components/dashboard/DashboardUI'
+import { WorkspaceTaskBoard } from '../../components/collaboration/WorkspaceTaskBoard'
+import { Badge, Button, FileUpload, Input, Select, Textarea, useToast } from '../../components/ui'
 import { useCollaboration } from '../../context/collaboration-context'
+import { collaborationApi } from '../../api/collaboration.api'
+import { parseMoneyAmount } from '../../utils/money'
 
-const workspaceTabs = [
-  { value: 'overview', label: 'Overview', icon: LayoutDashboard },
-  { value: 'negotiation', label: 'Negotiation', icon: SlidersHorizontal },
-  { value: 'agreement', label: 'Agreement', icon: FileCheck2 },
-  { value: 'tasks', label: 'Tasks', icon: ListChecks },
-  { value: 'files', label: 'Files', icon: FolderOpen },
-  { value: 'timeline', label: 'Timeline', icon: CalendarDays },
-  { value: 'contract', label: 'Contract', icon: FileSignature },
-  { value: 'payment', label: 'Payment', icon: CreditCard },
-  { value: 'deliverables', label: 'Deliverables', icon: PackageCheck },
-  { value: 'activity', label: 'Activity', icon: Activity },
+const workspaceTabGroups = [
+  {
+    label: 'Workspace',
+    tabs: [
+      { value: 'overview', label: 'Overview', description: 'Status, next step and recent work.', icon: LayoutDashboard },
+    ],
+  },
+  {
+    label: 'Setup',
+    tabs: [
+      { value: 'negotiation', label: 'Terms & budget', description: 'Agree on scope, dates and compensation.', icon: SlidersHorizontal },
+      { value: 'agreement', label: 'Agreement', description: 'Lock and approve the shared terms.', icon: FileCheck2 },
+      { value: 'contract', label: 'Contract', description: 'Review and approve the formal contract.', icon: FileSignature },
+      { value: 'payment', label: 'Payment', description: 'View funding and payment status.', icon: CreditCard },
+    ],
+  },
+  {
+    label: 'Production',
+    tabs: [
+      { value: 'tasks', label: 'Tasks', description: 'Assign and complete production work.', icon: ListChecks },
+      { value: 'files', label: 'Files', description: 'Share briefs and working assets.', icon: FolderOpen },
+      { value: 'deliverables', label: 'Deliverables', description: 'Submit, review and approve final work.', icon: PackageCheck },
+    ],
+  },
+  {
+    label: 'Records',
+    tabs: [
+      { value: 'timeline', label: 'Timeline', description: 'See milestones in chronological order.', icon: CalendarDays },
+      { value: 'activity', label: 'Updates', description: 'Read decisions and add project notes.', icon: Activity },
+    ],
+  },
 ]
+
+const workspaceTabs = workspaceTabGroups.flatMap((group) => group.tabs)
 
 const termFields = [
   { key: 'deliverables', label: 'Deliverables', placeholder: '2 Instagram Reels, 2 Stories', span: true },
@@ -141,29 +165,13 @@ function getTerms(workspace) {
   }
 }
 
-function getProgress(workspace) {
-  if (Number.isFinite(workspace?.progress)) return Math.min(100, Math.max(0, workspace.progress))
-  const statusProgress = {
-    NEGOTIATION: 18,
-    AGREEMENT_PENDING: 30,
-    AGREEMENT_APPROVED: 42,
-    CONTRACT_PENDING: 50,
-    CONTRACT_ACTIVE: 62,
-    PAYMENT_REQUIRED: 68,
-    IN_PROGRESS: 76,
-    IN_REVIEW: 88,
-    COMPLETED: 100,
-  }
-  return statusProgress[String(workspace?.status || '').toUpperCase()] ?? 12
-}
-
 function getActivity(workspace) {
-  return workspace?.activity || workspace?.activities || workspace?.timeline || []
+  return workspace?.activity || workspace?.activities || []
 }
 
 function Panel({ title, description, action, children, className = '' }) {
   return (
-    <SpotlightCard as="section" className={`min-w-0 rounded-[1.4rem] border border-white/10 bg-white/[.028] p-5 transition duration-300 hover:border-white/20 sm:p-6 ${className}`}>
+    <section className={`min-w-0 rounded-2xl border border-white/10 bg-white/[.025] p-5 sm:p-6 ${className}`}>
       <header className="mb-5 flex flex-col justify-between gap-3 sm:flex-row sm:items-start">
         <div className="min-w-0">
           <h2 className="text-lg font-bold tracking-[-.035em]">{title}</h2>
@@ -172,7 +180,7 @@ function Panel({ title, description, action, children, className = '' }) {
         {action && <div className="shrink-0">{action}</div>}
       </header>
       {children}
-    </SpotlightCard>
+    </section>
   )
 }
 
@@ -229,6 +237,7 @@ export default function CollaborationWorkspacePage({ role: suppliedRole }) {
   const { toast } = useToast()
   const {
     getWorkspace,
+    refreshWorkspace,
     updateTerms,
     lockAgreement,
     approveAgreement,
@@ -236,12 +245,16 @@ export default function CollaborationWorkspacePage({ role: suppliedRole }) {
     approveContract,
     requestContractChanges,
     fundWorkspace,
-    toggleTask,
+    createTask,
+    updateTask,
+    deleteTask,
     addFile,
     submitDeliverable,
     reviewDeliverable,
     submitReview,
     publishShowcase,
+    declineShowcase,
+    submitPublishProof,
     addActivity,
     isLoading,
   } = useCollaboration()
@@ -264,14 +277,67 @@ export default function CollaborationWorkspacePage({ role: suppliedRole }) {
   const [busyAction, setBusyAction] = useState('')
   const [fileUploadVersion, setFileUploadVersion] = useState(0)
   const [deliverableUploadVersion, setDeliverableUploadVersion] = useState(0)
+  const [proofUrl, setProofUrl] = useState('')
+  const [proofPlatform, setProofPlatform] = useState('INSTAGRAM')
+  const [proofFile, setProofFile] = useState(null)
+  const [proofDisclosure, setProofDisclosure] = useState(false)
+  const [proofUploadVersion, setProofUploadVersion] = useState(0)
+  const [financeSummary, setFinanceSummary] = useState(null)
+
+  useEffect(() => {
+    let active = true
+    if (!workspaceId) return undefined
+    collaborationApi.paymentSummary(workspaceId)
+      .then((result) => { if (active) setFinanceSummary(result) })
+      .catch(() => { if (active) setFinanceSummary(null) })
+    return () => { active = false }
+  }, [workspaceId, workspace?.payment?.status])
+
+  useEffect(() => {
+    if (!['PENDING', 'PROCESSING'].includes(String(workspace?.payment?.status).toUpperCase())) return undefined
+    const timer = window.setInterval(() => refreshWorkspace(workspaceId), 5000)
+    return () => window.clearInterval(timer)
+  }, [refreshWorkspace, workspace?.payment?.status, workspaceId])
 
   const runAction = async (key, action, success) => {
     setBusyAction(key)
     try {
-      await action()
-      toast(success, { type: 'success' })
+      const result = await action()
+      toast(typeof success === 'function' ? success(result) : success, { type: 'success' })
     } catch (error) {
       toast(error?.message || 'That action could not be completed.', { type: 'error' })
+    } finally {
+      setBusyAction('')
+    }
+  }
+
+  const startFunding = async () => {
+    setBusyAction('fund')
+    try {
+      const result = await fundWorkspace(workspaceId)
+      if (result?.intent?.checkoutUrl) {
+        toast('Secure checkout is opening. Payment status will update after Stripe confirms it.', { type: 'success' })
+        window.location.assign(result.intent.checkoutUrl)
+        return
+      }
+      toast(result?.payment?.status === 'FUNDED' ? 'Workspace funded. Production is now active.' : 'Payment intent created. Complete the provider instructions.', { type: 'success' })
+      setFinanceSummary(await collaborationApi.paymentSummary(workspaceId))
+    } catch (error) {
+      toast(error?.message || 'Payment could not be started.', { type: 'error' })
+    } finally {
+      setBusyAction('')
+    }
+  }
+
+  const runTaskAction = async (key, action, success) => {
+    setBusyAction(key)
+    try {
+      const result = await action()
+      toast(success, { type: 'success' })
+      return result
+    } catch (error) {
+      toast(error?.message || 'Task could not be changed.', { type: 'error' })
+      throw error
     } finally {
       setBusyAction('')
     }
@@ -296,11 +362,12 @@ export default function CollaborationWorkspacePage({ role: suppliedRole }) {
   const creatorName = asText(workspace.creator, workspace.creatorName || 'Creator')
   const campaignName = asText(workspace.campaign, workspace.campaignName || workspace.title || 'Collaboration')
   const status = titleCase(workspace.status)
-  const progress = getProgress(workspace)
   const terms = workspace.terms || workspace.agreement?.terms || termsDraft
   const agreement = workspace.agreement || {}
   const contract = workspace.contract || {}
   const payment = workspace.payment || {}
+  const paymentType = financeSummary?.paymentType || workspace.paymentType || payment.paymentType || 'PAID'
+  const barterDetails = financeSummary?.barterDetails || workspace.barterDetails || {}
   const tasks = workspace.tasks || []
   const files = workspace.files || []
   const deliverables = workspace.deliverables || []
@@ -313,23 +380,133 @@ export default function CollaborationWorkspacePage({ role: suppliedRole }) {
   const contractCreatorApproved = getApproval(contract, 'creator')
   const contractActive = Boolean(contract.active || contract.status === 'ACTIVE' || workspace.contractActive || (contractBusinessApproved && contractCreatorApproved))
   const paymentFunded = Boolean(payment.funded || ['FUNDED', 'RELEASED'].includes(payment.status) || workspace.paymentFunded)
-  const allDeliverablesApproved = deliverables.length > 0 && deliverables.every((item) => String(item.status).toUpperCase() === 'APPROVED')
-  const isCompleted = String(workspace.status).toUpperCase() === 'COMPLETED' || allDeliverablesApproved
+  const fundingPending = ['PENDING', 'PROCESSING'].includes(String(payment.status).toUpperCase())
+  const supersededDeliverableIds = new Set(deliverables.map((item) => item.revisionOfId).filter(Boolean))
+  const latestDeliverables = deliverables.filter((item) => !supersededDeliverableIds.has(item.id))
+  const allDeliverablesApproved = latestDeliverables.length > 0 && latestDeliverables.every((item) => String(item.status).toUpperCase() === 'APPROVED')
+  const pendingDeliverableCount = latestDeliverables.filter((item) => String(item.status).toUpperCase() !== 'APPROVED').length
+  const isCompleted = String(workspace.status).toUpperCase() === 'COMPLETED'
+  const workspaceTerminal = ['COMPLETED', 'CANCELLED'].includes(String(workspace.status).toUpperCase())
   const reviews = workspace.reviews || {}
   const currentReview = reviews[role]
+  const counterpartReview = reviews[role === 'creator' ? 'business' : 'creator']
   const bothReviewsSubmitted = Boolean(reviews.creator && reviews.business)
+  const showcaseConsent = workspace.showcaseConsent || { mine: 'PENDING', counterpart: 'PENDING' }
   const currentRoleAgreementApproved = role === 'creator' ? agreementCreatorApproved : agreementBusinessApproved
   const currentRoleContractApproved = role === 'creator' ? contractCreatorApproved : contractBusinessApproved
-  const completedTasks = tasks.filter((task) => task.completed || task.done || task.status === 'COMPLETED').length
+  const completedTasks = tasks.filter((task) => task.completed || task.done || task.status === 'DONE' || task.status === 'COMPLETED').length
+  const taskParticipants = [
+    { id: workspace.business?.userId, name: businessName, role: 'Business' },
+    { id: workspace.creator?.userId, name: creatorName, role: 'Creator' },
+  ].filter((participant) => participant.id)
   const nextDeadline = workspace.nextDeadline || terms.finalDeadline || termsDraft.finalDeadline
+  const workflowSteps = [
+    { label: 'Terms', tab: 'negotiation', done: agreementLocked },
+    { label: 'Agreement', tab: 'agreement', done: agreementApproved },
+    { label: 'Contract', tab: 'contract', done: contractActive },
+    { label: 'Funding', tab: 'payment', done: paymentFunded },
+    { label: 'Delivery', tab: 'deliverables', done: allDeliverablesApproved },
+  ]
+  const nextAction = (() => {
+    if (workspaceTerminal || isCompleted) return {
+      label: 'Workflow complete',
+      title: 'This collaboration is complete',
+      description: 'Review the final activity, submit feedback or approve Showcase publishing.',
+      tab: 'overview',
+      button: 'View summary',
+      icon: BadgeCheck,
+      complete: true,
+    }
+    if (!agreementLocked) return {
+      label: 'Step 1 · Terms',
+      title: 'Confirm the scope and budget',
+      description: role === 'business'
+        ? 'Check the deliverables, dates and budget, then lock the agreement when both sides are ready.'
+        : 'Review the shared terms and update anything that needs to change before they are locked.',
+      tab: 'negotiation',
+      button: 'Open terms',
+      icon: SlidersHorizontal,
+    }
+    if (!agreementApproved) return {
+      label: 'Step 2 · Agreement',
+      title: currentRoleAgreementApproved ? 'Waiting for the other approval' : 'Review and approve the agreement',
+      description: currentRoleAgreementApproved
+        ? `Your approval is recorded. ${role === 'creator' ? businessName : creatorName} still needs to approve this version.`
+        : 'Check the locked terms carefully. Approve them or request a specific change.',
+      tab: 'agreement',
+      button: 'View agreement',
+      icon: currentRoleAgreementApproved ? Clock3 : FileCheck2,
+      waiting: currentRoleAgreementApproved,
+    }
+    if (!contractActive) return {
+      label: 'Step 3 · Contract',
+      title: currentRoleContractApproved ? 'Waiting for the other contract approval' : 'Review the contract',
+      description: currentRoleContractApproved
+        ? `Your contract approval is recorded. ${role === 'creator' ? businessName : creatorName} still needs to approve.`
+        : 'Review the generated contract and approve it before funding can begin.',
+      tab: 'contract',
+      button: 'View contract',
+      icon: currentRoleContractApproved ? Clock3 : FileSignature,
+      waiting: currentRoleContractApproved,
+    }
+    if (!paymentFunded) return {
+      label: 'Step 4 · Funding',
+      title: role === 'business' ? 'Fund the collaboration' : 'Waiting for business funding',
+      description: role === 'business'
+        ? `Fund ${formatMoney(financeSummary?.payableAmount ?? payment.amount ?? terms.budget)} to unlock production.`
+        : `${businessName} must complete funding before production and deliverable submission begin.`,
+      tab: 'payment',
+      button: 'View payment',
+      icon: role === 'business' ? CreditCard : Clock3,
+      waiting: role !== 'business',
+    }
+    if (allDeliverablesApproved) return {
+      label: 'Final acceptance',
+      title: role === 'business' ? 'Complete the accepted collaboration' : 'Waiting for business completion',
+      description: role === 'business'
+        ? 'All final deliverables are approved. Confirm completion to finalize the workspace and release the funded payment.'
+        : `${businessName} can now complete the collaboration. Publication proof is optional and does not block completion.`,
+      tab: 'deliverables',
+      button: role === 'business' ? 'Complete collaboration' : 'View delivery',
+      icon: role === 'business' ? BadgeCheck : Clock3,
+      waiting: role !== 'business',
+    }
+    if (completedTasks < tasks.length) return {
+      label: 'Step 5 · Production',
+      title: 'Complete the production tasks',
+      description: `${completedTasks} of ${tasks.length} tasks are complete. Open the task board to see ownership and deadlines.`,
+      tab: 'tasks',
+      button: 'Open tasks',
+      icon: ListChecks,
+    }
+    return {
+      label: 'Step 5 · Delivery',
+      title: role === 'creator' ? 'Submit the campaign deliverables' : 'Review the creator deliverables',
+      description: role === 'creator'
+        ? 'Upload the agreed work for business review.'
+        : 'Approve the submitted work or request a clear revision.',
+      tab: 'deliverables',
+      button: 'Open deliverables',
+      icon: PackageCheck,
+    }
+  })()
+  const tabCompletion = {
+    negotiation: agreementLocked,
+    agreement: agreementApproved,
+    contract: contractActive,
+    payment: paymentFunded,
+    tasks: tasks.length > 0 && completedTasks === tasks.length,
+    deliverables: allDeliverablesApproved,
+  }
 
   const updateDraft = (key, value) => setTermsDraft((current) => ({ ...current, [key]: value }))
 
   const saveTerms = (event) => {
     event.preventDefault()
+    const parsedBudget = parseMoneyAmount(termsDraft.budget)
     runAction(
       'terms',
-      () => updateTerms(workspaceId, { ...termsDraft, budget: termsDraft.budget === '' ? '' : Number(termsDraft.budget) || termsDraft.budget }, role),
+      () => updateTerms(workspaceId, { ...termsDraft, budget: termsDraft.budget === '' ? '' : parsedBudget ?? termsDraft.budget }, role),
       'Negotiation terms saved.',
     )
   }
@@ -363,6 +540,17 @@ export default function CollaborationWorkspacePage({ role: suppliedRole }) {
     )
     setReviewNotes((current) => ({ ...current, [deliverableId]: '' }))
   }
+  const submitProof = async () => {
+    const approved = latestDeliverables.find((item) => String(item.status).toUpperCase() === 'APPROVED')
+    if (!approved || !proofUrl.trim()) return
+    setBusyAction('proof')
+    try {
+      await submitPublishProof(workspaceId, approved.id, proofUrl.trim(), proofPlatform, proofFile, proofDisclosure)
+      setProofUrl(''); setProofFile(null); setProofDisclosure(false); setProofUploadVersion((value) => value + 1)
+      toast('Publication proof submitted for verification.', { type: 'success' })
+    } catch (error) { toast(error?.message || 'Publication proof could not be submitted.', { type: 'error' }) }
+    finally { setBusyAction('') }
+  }
 
   const renderOverview = () => (
     <div className="space-y-5">
@@ -371,73 +559,6 @@ export default function CollaborationWorkspacePage({ role: suppliedRole }) {
         <Detail icon={Building2} label="Business" value={businessName} />
         <Detail icon={UserRound} label="Creator" value={creatorName} />
         <Detail icon={CalendarDays} label="Next deadline" value={formatDate(nextDeadline)} />
-      </div>
-
-      <div className="grid gap-5 xl:grid-cols-[minmax(0,1.15fr)_minmax(18rem,.85fr)]">
-        <Panel title="Project progress" description="A live view of the collaboration from terms through final approval.">
-          <div className="flex items-end justify-between gap-4">
-            <div>
-              <strong className="text-4xl tracking-[-.065em]">{progress}%</strong>
-              <p className="mt-2 text-xs text-white/35">{status}</p>
-            </div>
-            <Badge variant={isCompleted ? 'mint' : accent}>{status}</Badge>
-          </div>
-          <div className="mt-6"><Progress value={progress} color={accent} /></div>
-          <div className="mt-6 grid grid-cols-2 gap-2 sm:grid-cols-4">
-            {[
-              ['Agreement', agreementApproved],
-              ['Contract', contractActive],
-              ['Payment', paymentFunded],
-              ['Delivery', allDeliverablesApproved],
-            ].map(([label, done]) => (
-              <div key={label} className={`rounded-xl border p-3 ${done ? 'border-mint/25 bg-mint/[.06]' : 'border-white/10'}`}>
-                {done ? <CheckCircle2 size={16} className="text-mint" /> : <Circle size={16} className="text-white/20" />}
-                <p className={`mt-2 text-[11px] font-semibold ${done ? 'text-mint' : 'text-white/38'}`}>{label}</p>
-              </div>
-            ))}
-          </div>
-        </Panel>
-
-        <Panel title="Current focus" description={role === 'creator' ? 'Actions assigned to the creator channel.' : 'Actions assigned to the business channel.'}>
-          <div className="space-y-2">
-            {!agreementLocked && (
-              <button type="button" onClick={() => setActiveTab('negotiation')} className="flex w-full items-center gap-3 rounded-xl border border-white/10 p-3 text-left transition hover:bg-white/[.04]">
-                <SlidersHorizontal size={16} className={accent === 'mint' ? 'text-mint' : 'text-pink'} />
-                <span className="flex-1 text-xs font-semibold">Finalize collaboration terms</span><ChevronRight size={14} className="text-white/25" />
-              </button>
-            )}
-            {agreementLocked && !currentRoleAgreementApproved && (
-              <button type="button" onClick={() => setActiveTab('agreement')} className="flex w-full items-center gap-3 rounded-xl border border-white/10 p-3 text-left transition hover:bg-white/[.04]">
-                <FileCheck2 size={16} className={accent === 'mint' ? 'text-mint' : 'text-pink'} />
-                <span className="flex-1 text-xs font-semibold">Review and approve agreement</span><ChevronRight size={14} className="text-white/25" />
-              </button>
-            )}
-            {agreementApproved && !currentRoleContractApproved && (
-              <button type="button" onClick={() => setActiveTab('contract')} className="flex w-full items-center gap-3 rounded-xl border border-white/10 p-3 text-left transition hover:bg-white/[.04]">
-                <FileSignature size={16} className={accent === 'mint' ? 'text-mint' : 'text-pink'} />
-                <span className="flex-1 text-xs font-semibold">Review collaboration contract</span><ChevronRight size={14} className="text-white/25" />
-              </button>
-            )}
-            {contractActive && !paymentFunded && (
-              <button type="button" onClick={() => setActiveTab('payment')} className="flex w-full items-center gap-3 rounded-xl border border-white/10 p-3 text-left transition hover:bg-white/[.04]">
-                <CircleDollarSign size={16} className={accent === 'mint' ? 'text-mint' : 'text-pink'} />
-                <span className="flex-1 text-xs font-semibold">{role === 'business' ? 'Fund the collaboration' : 'Track payment funding'}</span><ChevronRight size={14} className="text-white/25" />
-              </button>
-            )}
-            {paymentFunded && !allDeliverablesApproved && (
-              <button type="button" onClick={() => setActiveTab('deliverables')} className="flex w-full items-center gap-3 rounded-xl border border-white/10 p-3 text-left transition hover:bg-white/[.04]">
-                <PackageCheck size={16} className={accent === 'mint' ? 'text-mint' : 'text-pink'} />
-                <span className="flex-1 text-xs font-semibold">{role === 'creator' ? 'Submit campaign deliverables' : 'Review campaign deliverables'}</span><ChevronRight size={14} className="text-white/25" />
-              </button>
-            )}
-            {isCompleted && (
-              <div className="flex items-center gap-3 rounded-xl border border-mint/20 bg-mint/[.06] p-3">
-                <BadgeCheck size={17} className="text-mint" />
-                <span className="text-xs font-semibold text-mint">Collaboration completed</span>
-              </div>
-            )}
-          </div>
-        </Panel>
       </div>
 
       <div className="grid gap-5 xl:grid-cols-2">
@@ -503,9 +624,23 @@ export default function CollaborationWorkspacePage({ role: suppliedRole }) {
                 ))}
               </div>
               {currentReview ? (
-                <div className="mt-4 rounded-xl border border-mint/20 bg-mint/[.06] p-4">
-                  <div className="flex items-center gap-2 text-mint"><CheckCircle2 size={16} /><strong className="text-xs">Your review is published</strong></div>
-                  <p className="mt-2 text-xs leading-5 text-white/48">{currentReview.comment}</p>
+                <div className="mt-4 space-y-3">
+                  <div className="rounded-xl border border-mint/20 bg-mint/[.06] p-4">
+                    <div className="flex items-center gap-2 text-mint"><CheckCircle2 size={16} /><strong className="text-xs">Your review is submitted</strong></div>
+                    <p className="mt-2 text-xs leading-5 text-white/48">{currentReview.comment}</p>
+                  </div>
+                  {currentReview.revealed ? (
+                    counterpartReview && (
+                      <div className="rounded-xl border border-white/10 bg-white/[.03] p-4">
+                        <div className="flex items-center gap-2"><Star size={14} className="text-white/40" /><strong className="text-xs">{role === 'creator' ? 'Business' : 'Creator'} review</strong></div>
+                        <p className="mt-2 text-xs leading-5 text-white/48">{counterpartReview.comment}</p>
+                      </div>
+                    )
+                  ) : (
+                    <div className="rounded-xl border border-white/10 bg-white/[.03] p-4 text-xs text-white/40">
+                      <Clock3 size={14} className="mb-1 inline text-white/30" /> Hidden until the {role === 'creator' ? 'business' : 'creator'} also submits a review — reviews reveal to each other at the same time.
+                    </div>
+                  )}
                 </div>
               ) : (
                 <>
@@ -525,18 +660,45 @@ export default function CollaborationWorkspacePage({ role: suppliedRole }) {
             <div className="rounded-2xl border border-white/10 bg-white/[.025] p-5">
               <Sparkles className={accent === 'mint' ? 'text-mint' : 'text-pink'} size={22} />
               <h3 className="mt-4 font-bold">Publish to Showcase</h3>
-              <p className="mt-2 text-xs leading-5 text-white/38">Feature the campaign, partners and final approved media in the public marketplace.</p>
-              {role === 'business' ? (
-                <Button
-                  className="mt-5 w-full"
-                  variant="mint"
-                  disabled={workspace.showcasePublished || !bothReviewsSubmitted}
-                  loading={busyAction === 'showcase'}
-                  onClick={() => runAction('showcase', () => publishShowcase(workspaceId), 'Collaboration published to Showcase.')}
-                >
-                  <Globe2 size={15} /> {workspace.showcasePublished ? 'Already published' : bothReviewsSubmitted ? 'Publish showcase' : 'Waiting for reviews'}
-                </Button>
-              ) : <p className="mt-5 rounded-xl bg-white/[.04] p-3 text-xs text-white/40">The business channel controls public showcase publishing.</p>}
+              <p className="mt-2 text-xs leading-5 text-white/38">Both the business and the creator must approve before this collaboration appears in the public Showcase.</p>
+              {workspace.showcasePublished ? (
+                <div className="mt-5 flex items-center gap-2 rounded-xl bg-mint/[.08] p-3 text-xs text-mint"><Globe2 size={14} /> Published to Showcase</div>
+              ) : !bothReviewsSubmitted ? (
+                <p className="mt-5 rounded-xl bg-white/[.04] p-3 text-xs text-white/40">Both reviews must be submitted before Showcase consent can be given.</p>
+              ) : showcaseConsent.mine === 'DECLINED' ? (
+                <p className="mt-5 rounded-xl bg-white/[.04] p-3 text-xs text-white/40">You declined to share this collaboration on Showcase.</p>
+              ) : showcaseConsent.counterpart === 'DECLINED' ? (
+                <p className="mt-5 rounded-xl bg-white/[.04] p-3 text-xs text-white/40">The other participant declined to share this collaboration on Showcase.</p>
+              ) : (
+                <>
+                  <div className="mt-4 space-y-2 text-xs">
+                    <div className="flex items-center justify-between rounded-lg bg-white/[.03] px-3 py-2"><span className="text-white/40">You</span><Badge variant={showcaseConsent.mine === 'APPROVED' ? 'mint' : 'outline'}>{showcaseConsent.mine === 'APPROVED' ? 'Approved' : 'Pending'}</Badge></div>
+                    <div className="flex items-center justify-between rounded-lg bg-white/[.03] px-3 py-2"><span className="text-white/40">{role === 'creator' ? 'Business' : 'Creator'}</span><Badge variant={showcaseConsent.counterpart === 'APPROVED' ? 'mint' : 'outline'}>{showcaseConsent.counterpart === 'APPROVED' ? 'Approved' : 'Pending'}</Badge></div>
+                  </div>
+                  {showcaseConsent.mine === 'APPROVED' ? (
+                    <p className="mt-4 rounded-xl bg-white/[.04] p-3 text-xs text-white/40">Waiting for the other participant to approve.</p>
+                  ) : (
+                    <div className="mt-4 flex gap-2">
+                      <Button
+                        className="flex-1"
+                        variant="mint"
+                        loading={busyAction === 'showcase'}
+                        onClick={() => runAction('showcase', () => publishShowcase(workspaceId), 'Showcase consent recorded.')}
+                      >
+                        <Globe2 size={15} /> Approve
+                      </Button>
+                      <Button
+                        className="flex-1"
+                        variant="outline"
+                        loading={busyAction === 'showcase-decline'}
+                        onClick={() => runAction('showcase-decline', () => declineShowcase(workspaceId), 'Showcase consent declined.')}
+                      >
+                        Decline
+                      </Button>
+                    </div>
+                  )}
+                </>
+              )}
             </div>
           </div>
         </Panel>
@@ -684,39 +846,20 @@ export default function CollaborationWorkspacePage({ role: suppliedRole }) {
 
   const renderTasks = () => (
     <Panel title="Production tasks" description={`${completedTasks} of ${tasks.length} complete. Every change is visible to both collaborators.`}>
-      {tasks.length ? (
-        <div className="divide-y divide-white/[.07]">
-          {tasks.map((task) => {
-            const done = task.completed || task.done || task.status === 'COMPLETED'
-            return (
-              <div key={task.id} className="flex flex-col gap-3 py-4 first:pt-0 last:pb-0 sm:flex-row sm:items-center">
-                <button
-                  type="button"
-                  aria-label={`${done ? 'Reopen' : 'Complete'} ${task.title || task.text}`}
-                  disabled={isCompleted}
-                  onClick={() => runAction(`task-${task.id}`, () => toggleTask(workspaceId, task.id), done ? 'Task reopened.' : 'Task completed.')}
-                  className={`grid size-8 shrink-0 place-items-center rounded-full border transition disabled:cursor-not-allowed disabled:opacity-55 ${done ? 'border-mint bg-mint text-black' : 'border-white/15 text-white/20 hover:border-white/35 hover:text-white'}`}
-                >
-                  {done && <Check size={14} />}
-                </button>
-                <div className="min-w-0 flex-1">
-                  <strong className={`block text-sm ${done ? 'text-white/35 line-through' : ''}`}>{task.title || task.text}</strong>
-                  {(task.description || task.assignee || task.owner) && <p className="mt-1 text-xs text-white/32">{task.description || `Assigned to ${titleCase(task.assignee || task.owner)}`}</p>}
-                </div>
-                <div className="flex items-center gap-2">
-                  {(task.assignee || task.owner) && <Badge variant={String(task.assignee || task.owner).toLowerCase() === 'creator' ? 'pink' : String(task.assignee || task.owner).toLowerCase() === 'business' ? 'mint' : 'outline'}>{task.assignee || task.owner}</Badge>}
-                  {(task.dueDate || task.due) && <span className="text-[10px] text-white/30">{formatDate(task.dueDate || task.due)}</span>}
-                </div>
-              </div>
-            )
-          })}
-        </div>
-      ) : <EmptyBlock icon={ListChecks} title="No production tasks" copy="Tasks are generated from the approved scope when the collaboration advances." action={() => setActiveTab(agreementLocked ? 'agreement' : 'negotiation')} actionLabel={agreementLocked ? 'Review agreement' : 'Finalize terms'} />}
+      <WorkspaceTaskBoard
+        tasks={tasks}
+        participants={taskParticipants}
+        disabled={workspaceTerminal}
+        busyTaskId={busyAction.replace(/^task-/, '')}
+        onCreate={(payload) => runTaskAction('task-create', () => createTask(workspaceId, payload), 'Task created.')}
+        onUpdate={(task, payload) => runTaskAction(`task-${task.id}`, () => updateTask(workspaceId, task.id, payload), 'Task updated.')}
+        onDelete={(task) => runTaskAction(`task-${task.id}`, () => deleteTask(workspaceId, task.id, task.version), 'Task deleted.')}
+      />
     </Panel>
   )
 
   const renderFiles = () => (
-    <div className={`grid gap-5 ${isCompleted ? '' : 'xl:grid-cols-[minmax(0,1fr)_22rem]'}`}>
+    <div className={`grid gap-5 ${workspaceTerminal ? '' : 'xl:grid-cols-[minmax(0,1fr)_22rem]'}`}>
       <Panel title="Shared files" description="Briefs, references, contracts and working assets shared across the project.">
         {files.length ? (
           <div className="grid gap-3 sm:grid-cols-2">
@@ -735,8 +878,8 @@ export default function CollaborationWorkspacePage({ role: suppliedRole }) {
           </div>
         ) : <EmptyBlock icon={FolderOpen} title="No shared files" copy="Upload the first brief, reference or production asset from the panel beside this list." />}
       </Panel>
-      {!isCompleted && <Panel title="Add a file" description={`This upload will be attributed to the ${role} channel.`}>
-        <FileUpload key={fileUploadVersion} label="Workspace file" accept="image/*,video/*,.pdf,.doc,.docx" compact onChange={(items) => setSelectedFile(items[0] || null)} />
+      {!workspaceTerminal && <Panel title="Add a file" description={`This upload will be attributed to the ${role} channel. Images, video and PDF up to 25 MB are supported.`}>
+        <FileUpload key={fileUploadVersion} label="Workspace file" accept="image/*,video/*,.pdf" compact onChange={(items) => setSelectedFile(items[0] || null)} />
         <Button className="mt-4 w-full" variant={accent} disabled={!selectedFile} loading={busyAction === 'file'} onClick={uploadSharedFile}>
           <UploadCloud size={15} /> Add to workspace
         </Button>
@@ -745,7 +888,7 @@ export default function CollaborationWorkspacePage({ role: suppliedRole }) {
   )
 
   const renderTimeline = () => {
-    const entries = workspace.timeline || activities
+    const entries = activities
     return (
       <Panel title="Project timeline" description="Milestones, deadlines and decisions arranged as one chronological project record.">
         {entries.length ? (
@@ -858,23 +1001,25 @@ export default function CollaborationWorkspacePage({ role: suppliedRole }) {
 
   const renderPayment = () => (
     <div className="grid gap-5 xl:grid-cols-[minmax(0,1fr)_22rem]">
-      <Panel title="Payment protection" description="Funding is held for the collaboration and unlocks production after the contract is active.">
+      <Panel title={`${paymentType} collaboration`} description="Wallet funding creates pending creator earnings and pending platform revenue. Nothing is earned until completion.">
         <div className={`rounded-[1.25rem] border p-6 ${paymentFunded ? 'border-mint/25 bg-mint/[.055]' : 'border-white/10 bg-white/[.02]'}`}>
           <div className="flex flex-col justify-between gap-5 sm:flex-row sm:items-start">
             <span>
-              <p className="text-[10px] font-bold uppercase tracking-[.12em] text-white/30">Collaboration total</p>
-              <strong className="mt-3 block text-4xl tracking-[-.055em]">{formatMoney(payment.amount || terms.budget || termsDraft.budget)}</strong>
-              <small className="mt-2 block text-white/30">{asText(terms.paymentTerms || termsDraft.paymentTerms)}</small>
+              <p className="text-[10px] font-bold uppercase tracking-[.12em] text-white/30">{paymentType === 'BARTER' ? 'Platform service fee' : 'Wallet funding required'}</p>
+              <strong className="mt-3 block text-4xl tracking-[-.055em]">{formatMoney(financeSummary?.payableAmount ?? payment.amount ?? terms.budget ?? termsDraft.budget)}</strong>
+              <small className="mt-2 block text-white/30">Paid from the business wallet · no hidden checkout fee</small>
             </span>
             <span className={`grid size-14 place-items-center rounded-full ${paymentFunded ? 'bg-mint text-black' : 'bg-white/[.06] text-white/40'}`}>
               {paymentFunded ? <ShieldCheck size={23} /> : <Landmark size={23} />}
             </span>
           </div>
-          <div className="mt-7 grid gap-3 sm:grid-cols-3">
-            <Detail label="Contract" value={contractActive ? 'Active' : 'Not active'} />
-            <Detail label="Funding status" value={paymentFunded ? 'Funded' : 'Payment required'} />
-            <Detail label="Release" value={payment.releaseTerms || 'After approval'} />
+          <div className="mt-7 grid gap-3 sm:grid-cols-2 xl:grid-cols-4">
+            <Detail label="Cash compensation" value={formatMoney(financeSummary?.cashAmount || 0)} />
+            <Detail label="Creator earnings" value={formatMoney(financeSummary?.creatorAmount || 0)} />
+            <Detail label={paymentType === 'BARTER' ? 'Fixed service fee' : `Commission · ${financeSummary?.commissionRate || 0}%`} value={formatMoney(financeSummary?.platformFee || 0)} />
+            <Detail label="Wallet balance" value={formatMoney(financeSummary?.availableBalance || 0)} />
           </div>
+          {paymentType !== 'PAID' && <div className="mt-3 rounded-xl border border-pink/15 bg-pink/[.04] p-4 text-xs leading-5 text-white/50"><b className="text-white">Business provides:</b> {barterDetails.providedItem || 'Product / service'} · estimated {formatMoney(financeSummary?.barterEstimatedValue ?? workspace.barterEstimatedValue ?? 0)}. This reference value is excluded from commission.</div>}
         </div>
         <div className="mt-5 flex gap-3 rounded-xl border border-white/[.08] p-4 text-xs leading-5 text-white/40">
           <ShieldCheck size={17} className="shrink-0 text-mint" />
@@ -891,9 +1036,21 @@ export default function CollaborationWorkspacePage({ role: suppliedRole }) {
             <h3 className="mt-4 text-sm font-bold">Workspace funded</h3>
             <p className="mt-2 text-xs leading-5 text-white/35">Production and deliverable submission are now active.</p>
           </div>
+        ) : fundingPending && payment.intent ? (
+          <div className="space-y-3">
+            <div className="rounded-xl border border-mint/20 bg-mint/[.06] p-4 text-xs leading-5 text-white/55">
+              <b className="block text-mint">Payment is processing</b>
+              {payment.intent.expiresAt && <span>Complete it before {new Date(payment.intent.expiresAt).toLocaleTimeString()}.</span>}
+            </div>
+            {payment.intent.qrImage && <img className="mx-auto max-h-44 rounded-xl bg-white p-2" alt="Payment QR code" src={payment.intent.qrImage.startsWith('data:') ? payment.intent.qrImage : `data:image/png;base64,${payment.intent.qrImage}`} />}
+            {payment.intent.checkoutUrl && <a href={payment.intent.checkoutUrl} target="_blank" rel="noreferrer" className="flex min-h-10 w-full items-center justify-center gap-2 rounded-full bg-mint px-4 text-xs font-bold text-black"><CreditCard size={15}/>Open secure checkout</a>}
+            <Button className="w-full" variant="outline" onClick={() => refreshWorkspace(workspaceId)}><Clock3 size={15}/>Check payment status</Button>
+          </div>
+        ) : role === 'business' && financeSummary?.missingAmount > 0 ? (
+          <div className="space-y-3"><div className="rounded-xl border border-pink/20 bg-pink/[.06] p-4 text-xs leading-5"><b className="block text-pink">Insufficient balance</b>You need an additional {formatMoney(financeSummary.missingAmount)}.</div><Button className="w-full" variant="mint" onClick={() => navigate('/business/payments')}><CreditCard size={15}/>Add {formatMoney(financeSummary.missingAmount)}</Button></div>
         ) : role === 'business' ? (
-          <Button className="w-full" variant="mint" loading={busyAction === 'fund'} onClick={() => runAction('fund', () => fundWorkspace(workspaceId), 'Workspace funded. Production is now active.')}>
-            <CreditCard size={15} /> Fund {formatMoney(payment.amount || terms.budget || termsDraft.budget)}
+          <Button className="w-full" variant="mint" loading={busyAction === 'fund'} onClick={startFunding}>
+            <CreditCard size={15} /> {paymentType === 'BARTER' ? 'Pay platform fee' : 'Pay from balance'} · {formatMoney(financeSummary?.payableAmount ?? payment.amount ?? terms.budget ?? termsDraft.budget)}
           </Button>
         ) : (
           <div className="rounded-xl border border-white/10 p-4 text-xs leading-5 text-white/40">Waiting for {businessName} to fund the collaboration.</div>
@@ -967,9 +1124,15 @@ export default function CollaborationWorkspacePage({ role: suppliedRole }) {
                         <Button
                           variant="mint"
                           loading={busyAction === `approve-${deliverableId}`}
-                          onClick={() => runAction(`approve-${deliverableId}`, () => reviewDeliverable(workspaceId, deliverableId, 'APPROVED', reviewNotes[deliverableId]?.trim() || ''), 'Deliverable approved.')}
+                          onClick={() => runAction(
+                            `approve-${deliverableId}`,
+                            () => reviewDeliverable(workspaceId, deliverableId, 'APPROVED', reviewNotes[deliverableId]?.trim() || ''),
+                            (result) => result?.completed
+                              ? 'Accepted. The collaboration is complete and the funded payment was released.'
+                              : 'Deliverable approved.',
+                          )}
                         >
-                          <Check size={15} /> Approve
+                          <Check size={15} /> {pendingDeliverableCount === 1 ? 'Accept & complete' : 'Accept'}
                         </Button>
                       </div>
                     </div>
@@ -983,6 +1146,16 @@ export default function CollaborationWorkspacePage({ role: suppliedRole }) {
           </div>
         ) : <EmptyBlock icon={PackageCheck} title="No deliverables submitted" copy={role === 'creator' ? 'Your submitted drafts and final assets will appear here.' : 'Creator submissions will appear here for structured review.'} />}
       </Panel>
+      {role === 'business' && allDeliverablesApproved && !isCompleted && <Panel title="Finish collaboration" description="All work is accepted. Complete it now without waiting for publication proof or a dispute window.">
+        <Button variant="mint" loading={busyAction === 'complete-collaboration'} onClick={() => runAction('complete-collaboration', () => reviewDeliverable(workspaceId, latestDeliverables[0].id, 'APPROVED', ''), 'The collaboration is complete and the funded payment was released.')}>
+          <BadgeCheck size={15} /> Complete collaboration
+        </Button>
+      </Panel>}
+      {role === 'creator' && allDeliverablesApproved && <Panel title="Optional publication proof" description="Add a public post URL for reporting or portfolio verification. It does not delay collaboration completion.">
+        {contract.disclosureRequired && <label className="mb-4 flex cursor-pointer items-start gap-3 rounded-xl border border-pink/25 bg-pink/[.06] p-4 text-xs leading-5"><input className="mt-1 accent-[#ff69b4]" type="checkbox" checked={proofDisclosure} onChange={(event) => setProofDisclosure(event.target.checked)}/><span><b className="block text-pink">Paid partnership disclosure required</b>Confirm that the public post visibly identifies the paid partnership. The API rejects proof without this confirmation.</span></label>}
+        <div className="grid gap-4 lg:grid-cols-2"><div className="space-y-4"><Input type="url" label="Published post URL" value={proofUrl} onChange={(event) => setProofUrl(event.target.value)} placeholder="https://instagram.com/p/…"/><Select label="Platform" value={proofPlatform} onChange={(event) => setProofPlatform(event.target.value)} options={['INSTAGRAM','TIKTOK','YOUTUBE','FACEBOOK','X','OTHER']}/></div><div><FileUpload key={proofUploadVersion} label="Proof screenshot (optional)" accept="image/*" compact onChange={(items) => setProofFile(items[0] || null)}/><Button className="mt-3 w-full" variant="pink" disabled={!proofUrl.trim() || (contract.disclosureRequired && !proofDisclosure)} loading={busyAction === 'proof'} onClick={submitProof}><ShieldCheck size={15}/>Save publication proof</Button></div></div>
+        {workspace.publishProofs?.length > 0 && <div className="mt-5 space-y-2">{workspace.publishProofs.map((proof) => <a key={proof.id} href={proof.postUrl} target="_blank" rel="noreferrer" className="flex items-center justify-between rounded-xl border border-white/10 p-3 text-xs hover:border-pink/40"><span>{proof.platform} · {new Date(proof.publishedAt || proof.createdAt).toLocaleDateString()}</span><Badge variant={proof.status === 'VERIFIED' ? 'mint' : 'outline'}>{titleCase(proof.status)}</Badge></a>)}</div>}
+      </Panel>}
     </div>
   )
 
@@ -1035,78 +1208,111 @@ export default function CollaborationWorkspacePage({ role: suppliedRole }) {
     deliverables: renderDeliverables,
     activity: renderActivity,
   }
+  const activeSection = workspaceTabs.find((tab) => tab.value === activeTab) || workspaceTabs[0]
+  const NextActionIcon = nextAction.icon
 
   return (
     <DashboardPage className="max-w-[1600px]">
-      <button type="button" onClick={() => navigate(`/${role}/dashboard`)} className="mb-6 flex items-center gap-2 text-xs text-white/38 transition hover:text-white">
+      <button type="button" onClick={() => navigate(`/${role}/dashboard`)} className="mb-4 flex items-center gap-2 text-xs text-white/50 hover:text-white">
         <ArrowLeft size={14} /> Back to dashboard
       </button>
 
-      <header className="relative isolate mb-6 overflow-hidden rounded-[1.75rem] border border-white/10 bg-white/[.035] p-5 shadow-[0_22px_80px_rgba(0,0,0,.22)] sm:p-7">
-        <AuroraBackground tone={accent} className="opacity-45" />
-        <div className="pointer-events-none absolute inset-0 bg-gradient-to-br from-white/[.05] via-transparent to-black/45" />
-        <div className={`pointer-events-none absolute -right-24 -top-32 size-72 rounded-full blur-3xl ${accent === 'mint' ? 'bg-mint/10' : 'bg-pink/10'}`} />
-        <div className="relative flex flex-col justify-between gap-6 xl:flex-row xl:items-end">
+      <header className="border-b border-white/10 pb-5">
+        <div className="flex flex-col justify-between gap-5 xl:flex-row xl:items-end">
           <div className="min-w-0">
             <div className="flex flex-wrap items-center gap-2">
               <Badge variant={accent}>{role} workspace</Badge>
               <Badge variant={isCompleted ? 'mint' : 'outline'}>{status}</Badge>
-              <span className="text-[10px] uppercase tracking-[.12em] text-white/25">#{workspaceId}</span>
             </div>
-            <h1 className="mt-4 max-w-4xl break-words text-3xl font-bold tracking-[-.05em] sm:text-4xl lg:text-5xl">{workspace.title || campaignName}</h1>
-            <div className="mt-4 flex flex-wrap items-center gap-x-5 gap-y-2 text-xs text-white/38">
+            <h1 className="mt-3 max-w-4xl break-words text-2xl font-bold tracking-[-.035em] sm:text-3xl">{workspace.title || campaignName}</h1>
+            <div className="mt-3 flex flex-wrap items-center gap-x-5 gap-y-2 text-xs text-white/45">
               <span className="flex items-center gap-1.5"><Building2 size={13} />{businessName}</span>
               <span className="flex items-center gap-1.5"><Users size={13} />{creatorName}</span>
-              <span className="flex items-center gap-1.5"><CalendarDays size={13} />Due {formatDate(nextDeadline)}</span>
             </div>
           </div>
-          <div className="w-full max-w-sm shrink-0 rounded-2xl border border-white/10 bg-black/15 p-4">
-            <div className="mb-3 flex items-center justify-between text-xs"><span className="text-white/38">Overall progress</span><b>{progress}%</b></div>
-            <Progress value={progress} color={accent} />
+          <div className="grid w-full gap-3 sm:grid-cols-2 xl:w-auto xl:min-w-[24rem]">
+            <div className="rounded-xl border border-white/10 px-4 py-3">
+              <small className="text-[9px] font-bold uppercase tracking-[.12em] text-white/30">Final budget</small>
+              <strong className="mt-1 block text-sm">{formatMoney(terms.budget ?? termsDraft.budget)}</strong>
+            </div>
+            <div className="rounded-xl border border-white/10 px-4 py-3">
+              <small className="text-[9px] font-bold uppercase tracking-[.12em] text-white/30">Next deadline</small>
+              <strong className="mt-1 block text-sm">{formatDate(nextDeadline)}</strong>
+            </div>
           </div>
         </div>
       </header>
 
-      <div className="workspace-layout grid items-start gap-6 xl:grid-cols-[17.5rem_minmax(0,1fr)]">
-        <nav aria-label="Workspace sections" className="workspace-nav sticky top-[72px] z-30 rounded-[1.25rem] border border-white/10 bg-[#111]/95 p-2 shadow-[0_18px_70px_rgba(0,0,0,.2)] backdrop-blur-xl xl:top-[92px] xl:rounded-[1.55rem] xl:p-3">
-          <div className="mb-3 hidden rounded-2xl border border-white/[.08] bg-black/15 p-4 xl:block">
-            <p className="text-[10px] font-bold uppercase tracking-[.14em] text-white/28">Project navigation</p>
-            <h3 className="mt-2 truncate text-sm font-bold">{campaignName}</h3>
-            <div className="mt-3">
-              <div className="mb-1.5 flex items-center justify-between text-[10px] text-white/35"><span>Progress</span><b className="text-white/70">{progress}%</b></div>
-              <Progress value={progress} color={accent} />
-            </div>
-          </div>
-          <div className="flex gap-1 overflow-x-auto [scrollbar-width:none] xl:grid xl:grid-cols-1 xl:overflow-visible">
-            {workspaceTabs.map((tab) => {
-              const Icon = tab.icon
-              const active = activeTab === tab.value
-              return (
-                <button
-                  type="button"
-                  key={tab.value}
-                  aria-current={active ? 'page' : undefined}
-                  onClick={() => setActiveTab(tab.value)}
-                  className={`flex min-w-max items-center gap-2 rounded-xl px-3 py-2.5 text-left text-xs font-semibold transition xl:w-full xl:gap-3 xl:py-3 ${active ? accent === 'mint' ? 'bg-mint text-black shadow-[0_10px_28px_rgba(187,247,208,.16)]' : 'bg-pink text-black shadow-[0_10px_28px_rgba(255,118,189,.18)]' : 'text-white/42 hover:bg-white/[.055] hover:text-white'}`}
-                >
-                  <Icon size={15} className="shrink-0" />
-                  <span>{tab.label}</span>
+      <nav aria-label="Collaboration workflow" className="my-5 overflow-x-auto rounded-2xl border border-white/10 bg-white/[.018] p-2 [scrollbar-width:none]">
+        <ol className="grid min-w-[38rem] grid-cols-5 gap-1">
+          {workflowSteps.map((step, index) => {
+            const current = !step.done && workflowSteps.slice(0, index).every((item) => item.done)
+            return (
+              <li key={step.label}>
+                <button type="button" onClick={() => setActiveTab(step.tab)} className={`flex w-full items-center gap-2 rounded-xl px-3 py-2.5 text-left ${current ? 'bg-white/[.08] text-white' : 'text-white/40 hover:bg-white/[.04] hover:text-white/70'}`}>
+                  <span className={`grid size-6 shrink-0 place-items-center rounded-full border text-[10px] font-bold ${step.done ? 'border-mint bg-mint text-black' : current ? 'border-white/45 text-white' : 'border-white/10 text-white/25'}`}>
+                    {step.done ? <Check size={12} /> : index + 1}
+                  </span>
+                  <span className="truncate text-[11px] font-semibold">{step.label}</span>
                 </button>
-              )
-            })}
+              </li>
+            )
+          })}
+        </ol>
+      </nav>
+
+      <div className="workspace-layout grid items-start gap-5 xl:grid-cols-[15.5rem_minmax(0,1fr)]">
+        <nav aria-label="Workspace sections" className="workspace-nav z-20 rounded-2xl border border-white/10 bg-[#111] p-3 xl:sticky xl:top-[92px]">
+          <label className="block xl:hidden">
+            <span className="mb-2 block text-[10px] font-bold uppercase tracking-[.12em] text-white/35">Workspace section</span>
+            <select value={activeTab} onChange={(event) => setActiveTab(event.target.value)} className="h-11 w-full rounded-xl border border-white/10 bg-[#181818] px-3 text-sm text-white outline-none">
+              {workspaceTabs.map((tab) => <option key={tab.value} value={tab.value}>{tab.label}</option>)}
+            </select>
+          </label>
+          <div className="hidden space-y-5 xl:block">
+            {workspaceTabGroups.map((group) => (
+              <div key={group.label}>
+                <p className="mb-1.5 px-3 text-[9px] font-bold uppercase tracking-[.14em] text-white/25">{group.label}</p>
+                <div className="space-y-0.5">
+                  {group.tabs.map((tab) => {
+                    const Icon = tab.icon
+                    const active = activeTab === tab.value
+                    const complete = tabCompletion[tab.value]
+                    return (
+                      <button type="button" key={tab.value} aria-current={active ? 'page' : undefined} onClick={() => setActiveTab(tab.value)} className={`flex w-full items-center gap-3 rounded-xl border px-3 py-2.5 text-left text-xs font-semibold ${active ? 'border-white/15 bg-white/[.08] text-white' : 'border-transparent text-white/45 hover:bg-white/[.04] hover:text-white/75'}`}>
+                        <Icon size={15} className={active ? accent === 'mint' ? 'text-mint' : 'text-pink' : 'text-white/35'} />
+                        <span className="min-w-0 flex-1 truncate">{tab.label}</span>
+                        {complete && <Check size={13} className="text-mint" />}
+                      </button>
+                    )
+                  })}
+                </div>
+              </div>
+            ))}
           </div>
         </nav>
 
-        <div className="workspace-content min-w-0 rounded-[1.75rem] border border-white/[.08] bg-black/10 p-4 sm:p-5">
-          <div className="mb-5 flex items-center justify-between gap-3 px-1">
+        <main className="workspace-content min-w-0">
+          <div className="mb-4 flex items-start justify-between gap-3 border-b border-white/10 pb-4">
             <div>
-              <p className="text-[10px] font-bold uppercase tracking-[.13em] text-white/25">Workspace section</p>
-              <h2 className="mt-1 text-xl font-bold">{workspaceTabs.find((tab) => tab.value === activeTab)?.label}</h2>
+              <h2 className="text-xl font-bold">{activeSection.label}</h2>
+              <p className="mt-1 text-xs leading-5 text-white/40">{activeSection.description}</p>
             </div>
-            <span className="hidden items-center gap-2 text-[10px] text-white/25 sm:flex"><Eye size={13} /> Shared with both parties</span>
+            <span className="hidden shrink-0 items-center gap-2 text-[10px] text-white/30 sm:flex"><Eye size={13} /> Shared workspace</span>
           </div>
+
+          <section className={`mb-5 flex flex-col gap-4 rounded-2xl border p-4 sm:flex-row sm:items-center ${nextAction.complete ? 'border-mint/25 bg-mint/[.045]' : 'border-white/10 bg-white/[.025]'}`}>
+            <span className={`grid size-10 shrink-0 place-items-center rounded-xl ${nextAction.complete ? 'bg-mint text-black' : 'bg-white/[.07] text-white/70'}`}><NextActionIcon size={18} /></span>
+            <div className="min-w-0 flex-1">
+              <p className={`text-[9px] font-bold uppercase tracking-[.14em] ${nextAction.complete ? 'text-mint' : nextAction.waiting ? 'text-white/35' : accent === 'mint' ? 'text-mint' : 'text-pink'}`}>{nextAction.label}</p>
+              <h3 className="mt-1 text-sm font-bold">{nextAction.title}</h3>
+              <p className="mt-1 text-xs leading-5 text-white/40">{nextAction.description}</p>
+            </div>
+            <Button size="sm" variant={nextAction.complete || nextAction.waiting ? 'outline' : accent} className="shrink-0" onClick={() => setActiveTab(nextAction.tab)}>{nextAction.button}</Button>
+          </section>
+
           {tabContent[activeTab]?.()}
-        </div>
+        </main>
       </div>
     </DashboardPage>
   )

@@ -5,7 +5,7 @@ import { businessCampaignRouter, campaignRouter } from '../modules/campaigns/ind
 import { collectionRouter } from '../modules/collections/index.js';
 import { creatorRouter } from '../modules/creator/index.js';
 import { discoveryRouter, searchRouter } from '../modules/discovery/index.js';
-import { interactionRouter } from '../modules/interactions/index.js';
+import { interactionRouter, publicInteractionRouter } from '../modules/interactions/index.js';
 import {
   businessesRouter,
   categoriesRouter,
@@ -28,6 +28,15 @@ import { contractRouter } from '../modules/contracts/index.js';
 import { collaborationPaymentRouter, paymentRouter } from '../modules/payments/index.js';
 import { collaborationDeliverableRouter } from '../modules/deliverables/index.js';
 import { collaborationReviewRouter } from '../modules/reviews/index.js';
+import { messagingRouter } from '../modules/messaging/index.js';
+import { notificationRouter } from '../modules/notifications/index.js';
+import { analyticsRouter } from '../modules/analytics/index.js';
+import { adminRouter } from '../modules/admin/index.js';
+import { collaborationDisputeRouter, disputeRouter } from '../modules/disputes/index.js';
+import { creatorSocialRouter, socialConnectionRouter } from '../modules/social-sync/index.js';
+import { contentRouter } from '../modules/content/index.js';
+import { safetyRouter } from '../modules/safety/index.js';
+import { healthRouter } from '../modules/operations/index.js';
 
 export const apiRouter = Router();
 
@@ -38,10 +47,13 @@ apiRouter.get('/health', (_req, res) => {
     data: { status: 'ok' },
   });
 });
+apiRouter.use('/health', healthRouter);
 
 apiRouter.use('/auth', authRouter);
 apiRouter.use('/users', userRouter);
 apiRouter.use('/creator', creatorRouter);
+apiRouter.use('/creator', creatorSocialRouter);
+apiRouter.use('/social-connections', socialConnectionRouter);
 apiRouter.use('/business', businessRouter);
 apiRouter.use('/media', mediaRouter);
 apiRouter.use('/creator/portfolio', ownerPortfolioRouter);
@@ -52,8 +64,11 @@ apiRouter.use('/categories', categoriesRouter);
 apiRouter.use('/marketplace', discoveryRouter);
 apiRouter.use('/search', searchRouter);
 apiRouter.use('/library', interactionRouter);
+apiRouter.use('/', publicInteractionRouter);
 apiRouter.use('/collections', collectionRouter);
 apiRouter.use('/showcase', showcaseRouter);
+apiRouter.use('/', contentRouter);
+apiRouter.use('/', safetyRouter);
 apiRouter.use('/campaigns', campaignRouter);
 apiRouter.use('/campaigns', campaignProposalRouter);
 apiRouter.use('/business/campaigns', businessCampaignRouter);
@@ -67,5 +82,11 @@ apiRouter.use('/collaborations', collaborationRouter);
 apiRouter.use('/collaborations', collaborationPaymentRouter);
 apiRouter.use('/collaborations', collaborationDeliverableRouter);
 apiRouter.use('/collaborations', collaborationReviewRouter);
+apiRouter.use('/collaborations', collaborationDisputeRouter);
+apiRouter.use('/disputes', disputeRouter);
 apiRouter.use('/contracts', contractRouter);
 apiRouter.use('/payments', paymentRouter);
+apiRouter.use('/conversations', messagingRouter);
+apiRouter.use('/notifications', notificationRouter);
+apiRouter.use('/analytics', analyticsRouter);
+apiRouter.use('/admin', adminRouter);

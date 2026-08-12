@@ -8,7 +8,7 @@ const money = (value, currency = 'MNT') => Number.isFinite(Number(value))
   : 'Contact for rate'
 const date = (value) => value
   ? new Intl.DateTimeFormat('en', { month: 'short', day: '2-digit' }).format(new Date(value))
-  : 'Flexible'
+  : 'Not set'
 
 export const toCreatorCard = (item) => ({
   ...item,
@@ -26,7 +26,8 @@ export const toBusinessCard = (item) => ({
     || item.name?.split(/\s+/).map((part) => part[0]).join('').slice(0, 2).toUpperCase()
     || 'B',
   cover: resolveMediaUrl(item.cover || item.coverUrl),
-  verifiedPayer: item.verified,
+  verifiedPayer: Boolean(item.verifiedPayer),
+  verifiedPayerSince: item.verifiedPayerSince || null,
   campaigns: item.campaignCount ?? item.campaigns ?? 0,
 })
 
@@ -35,9 +36,9 @@ export const toCampaignCard = (item) => ({
   businessId: item.business?.id,
   business: item.business?.name || item.business,
   image: resolveMediaUrl(item.business?.cover) || '',
-  goal: item.goal || 'Brand collaboration',
+  goal: item.goal || item.category || 'Not specified',
   niche: item.category,
-  platform: item.platforms?.join(' · ') || 'Multi-platform',
+  platform: item.platforms?.join(' · ') || 'Not specified',
   mode: item.isPublic ? 'Open' : 'Invite',
   applications: item.proposalCount || 0,
   budget: item.budgetMin == null && item.budgetMax == null
@@ -48,7 +49,7 @@ export const toCampaignCard = (item) => ({
     ? item.deliverables
     : Array.isArray(item.deliverables)
       ? item.deliverables.join(' · ')
-      : 'View campaign brief',
+      : 'Not specified',
 })
 
 export const toShowcaseCard = (item) => ({

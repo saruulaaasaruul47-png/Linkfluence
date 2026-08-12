@@ -37,4 +37,14 @@ export const campaignController = {
     await campaignService.remove(req.user.id, req.validated.params.id);
     sendSuccess(res, 200, 'Campaign draft deleted.', null);
   }),
+  addAttachment: asyncHandler(async (req, res) => {
+    sendSuccess(res, 201, 'Attachment added.', {
+      campaign: await campaignService.addAttachment(req.user.id, req.validated.params.id, req.validated.body),
+    });
+  }),
+  removeAttachment: asyncHandler(async (req, res) => {
+    sendSuccess(res, 200, 'Attachment removed.', {
+      campaign: await campaignService.removeAttachment(req.user.id, req.validated.params.id, req.validated.params.attachmentId),
+    });
+  }),
 };

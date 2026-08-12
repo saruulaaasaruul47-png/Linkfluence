@@ -30,3 +30,4 @@ export const refreshLimiter = createLimiter(30);
 export const forgotPasswordLimiter = createLimiter(5);
 export const resetOtpLimiter = createLimiter(10);
 export const resetPasswordLimiter = createLimiter(5);
+export const apiLimiter = createLimiter(300);

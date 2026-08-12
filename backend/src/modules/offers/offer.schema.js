@@ -3,17 +3,32 @@ import { z } from 'zod';
 const empty = z.object({}).strict();
 const id = z.string().trim().min(1).max(100);
 const envelope = (body = empty, params = empty, query = empty) => z.object({ body, params, query });
+const barterDetails = z.object({
+  providedItem: z.string().trim().min(2).max(160),
+  description: z.string().trim().min(2).max(2000),
+  estimatedValue: z.coerce.number().positive().max(1000000000000),
+  currency: z.string().trim().length(3).transform((value) => value.toUpperCase()).default('MNT'),
+  deliveryMethod: z.string().trim().min(2).max(160),
+  expectedDeliveryDate: z.string().trim().max(40).optional(),
+  notes: z.string().trim().max(1000).optional(),
+}).strict();
 
 export const createOfferSchema = envelope(z.object({
   creatorId: id,
   campaignId: id.optional(),
   title: z.string().trim().min(2).max(160),
   contentType: z.string().trim().min(2).max(160),
-  budget: z.coerce.number().positive().max(1000000000000),
+  paymentType: z.enum(['PAID', 'BARTER', 'HYBRID']).default('PAID'),
+  budget: z.coerce.number().min(0).max(1000000000000),
+  barterDetails: barterDetails.optional(),
   currency: z.string().trim().length(3).transform((v) => v.toUpperCase()).default('MNT'),
   timeline: z.string().trim().min(2).max(300),
   message: z.string().trim().min(10).max(5000),
-}).strict());
+}).strict().superRefine((value, ctx) => {
+  if (['PAID', 'HYBRID'].includes(value.paymentType) && value.budget <= 0) ctx.addIssue({ code: 'custom', path: ['budget'], message: 'A positive cash amount is required.' });
+  if (value.paymentType === 'BARTER' && value.budget !== 0) ctx.addIssue({ code: 'custom', path: ['budget'], message: 'Barter creator cash amount must be zero.' });
+  if (['BARTER', 'HYBRID'].includes(value.paymentType) && !value.barterDetails) ctx.addIssue({ code: 'custom', path: ['barterDetails'], message: 'Barter details are required.' });
+}));
 export const offerIdSchema = envelope(z.unknown().optional(), z.object({ id }));
 export const listOffersSchema = envelope(z.unknown().optional(), empty, z.object({
   side: z.enum(['creator', 'business']),
@@ -39,7 +54,7 @@ export const creatorResponseSchema = envelope(z.object({
 export const businessDecisionSchema = envelope(z.object({
   action: z.enum(['APPROVE', 'REQUEST_CHANGES', 'DECLINE']),
   message: z.string().trim().max(2000).optional(),
-  finalBudget: z.coerce.number().positive().max(1000000000000).optional(),
+  finalBudget: z.coerce.number().min(0).max(1000000000000).optional(),
   finalTimeline: z.string().trim().min(2).max(300).optional(),
   deliverables: z.string().trim().max(2000).optional(),
   contentCount: z.string().trim().max(100).optional(),

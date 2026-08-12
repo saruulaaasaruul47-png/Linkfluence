@@ -1,0 +1,12 @@
+import { Router } from 'express';
+import { validate } from '../../shared/middleware/validate.js';
+import { authenticate } from '../auth/public.js';
+import { notificationController } from './notification.controller.js';
+import { notificationIdSchema, notificationListSchema, notificationPreferenceSchema } from './notification.schema.js';
+export const notificationRouter = Router();
+notificationRouter.use(authenticate);
+notificationRouter.get('/', validate(notificationListSchema), notificationController.list);
+notificationRouter.get('/preferences', notificationController.preference);
+notificationRouter.patch('/preferences', validate(notificationPreferenceSchema), notificationController.savePreference);
+notificationRouter.post('/read-all', notificationController.readAll);
+notificationRouter.post('/:id/read', validate(notificationIdSchema), notificationController.read);

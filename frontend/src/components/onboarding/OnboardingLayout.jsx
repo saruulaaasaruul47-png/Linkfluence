@@ -3,8 +3,11 @@ import { ArrowLeft, Check, ChevronLeft } from 'lucide-react'
 import { Link } from 'react-router-dom'
 import { BrandLogo } from '../BrandLogo'
 import { Badge, Button } from '../ui'
+import { LanguageSwitcher } from '../navigation/LanguageSwitcher'
+import { useLanguage } from '../../context/language-context'
 
 export function OnboardingLayout({ type, steps, current, maxStep = current, onBack, onStepChange, children }) {
+  const {t}=useLanguage()
   const progress = ((current + 1) / steps.length) * 100
   return <main className="onboarding-shell">
     <aside className="onboarding-sidebar">
@@ -14,13 +17,13 @@ export function OnboardingLayout({ type, steps, current, maxStep = current, onBa
       <div className="mt-auto pt-8"><div className="h-1 overflow-hidden rounded-full bg-white/10"><motion.div className="h-full rounded-full bg-pink" animate={{ width: `${progress}%` }} /></div><p className="mt-3 text-[10px] uppercase tracking-[.15em] text-white/35">{Math.round(progress)}% complete · auto-saved locally</p></div>
     </aside>
     <section className="onboarding-main">
-      <header className="mb-10 flex items-center justify-between"><button onClick={onBack} disabled={current === 0} className="inline-flex items-center gap-2 text-xs font-bold disabled:opacity-30"><ChevronLeft size={16} /> Previous</button><Link to="/welcome" className="inline-flex items-center gap-2 text-xs text-[var(--subtle)]"><ArrowLeft size={14} /> Save & exit</Link></header>
+      <header className="mb-10 flex items-center justify-between gap-3"><button onClick={onBack} disabled={current === 0} className="inline-flex items-center gap-2 text-xs font-bold disabled:opacity-30"><ChevronLeft size={16} /> {t('onboarding.previous')}</button><div className="flex items-center gap-2"><Link to="/welcome" className="inline-flex items-center gap-2 text-xs text-[var(--subtle)]"><ArrowLeft size={14} /> {t('onboarding.saveExit')}</Link><LanguageSwitcher compact/></div></header>
       <div className="mx-auto max-w-4xl"><p className="eyebrow text-[var(--subtle)]">Step {current + 1} of {steps.length}</p><AnimatePresence mode="wait"><motion.div key={current} initial={{ opacity: 0, y: 14 }} animate={{ opacity: 1, y: 0 }} exit={{ opacity: 0, y: -8 }} transition={{ duration: .3 }}>{children}</motion.div></AnimatePresence></div>
     </section>
   </main>
 }
 
 export function StepHeading({ title, script, copy }) { return <div className="mb-9"><h2 className="display-lg mt-3 uppercase">{title} <span className="onboarding-script editorial text-pink">{script}</span></h2><p className="body-muted mt-5 max-w-xl text-sm">{copy}</p></div> }
-export function StepActions({ current, onNext, onBack, finish = false, loading = false }) { return <div className="onboarding-actions mt-10 flex items-center justify-between gap-3 border-t border-[var(--border)] pt-6"><Button className="onboarding-back-button" variant="ghost" onClick={onBack} disabled={current === 0}>Back</Button><Button className="onboarding-next-button" variant={finish ? 'pink' : 'primary'} size="lg" loading={loading} onClick={onNext}>{finish ? 'Finish channel' : 'Continue'} {!loading && !finish && '→'}</Button></div> }
+export function StepActions({ current, onNext, onBack, finish = false, loading = false }) { const {t}=useLanguage(); return <div className="onboarding-actions mt-10 flex items-center justify-between gap-3 border-t border-[var(--border)] pt-6"><Button className="onboarding-back-button" variant="ghost" onClick={onBack} disabled={current === 0}>{t('onboarding.back')}</Button><Button className="onboarding-next-button" variant={finish ? 'pink' : 'primary'} size="lg" loading={loading} onClick={onNext}>{finish ? t('onboarding.finish') : t('onboarding.continue')} {!loading && !finish && '→'}</Button></div> }
 
 export function ReviewList({ items }) { return <div className="grid gap-3 md:grid-cols-2">{items.map(([label, value]) => <div key={label} className="rounded-2xl border border-[var(--border)] bg-[var(--surface)] p-4"><p className="eyebrow text-[var(--subtle)]">{label}</p><p className="mt-2 text-sm font-semibold">{value || 'Not provided'}</p></div>)}</div> }

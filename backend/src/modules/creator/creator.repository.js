@@ -1,7 +1,10 @@
 import { prisma } from '../../config/database.js';
 
 const includeProfile = {
-  socialAccounts: true,
+  socialAccounts: {
+    include: { stats: { orderBy: { capturedAt: 'desc' }, take: 1 } },
+    orderBy: { platform: 'asc' },
+  },
   portfolioItems: {
     where: { deletedAt: null },
     orderBy: [{ sortOrder: 'asc' }, { createdAt: 'desc' }],
@@ -24,11 +27,12 @@ export const creatorRepository = {
   },
 
   async create(userId, profileData, socialAccounts, portfolioItem) {
-    return prisma.$transaction(async (tx) => {
+    await prisma.$transaction(async (tx) => {
       const profile = await tx.creatorProfile.create({ data: { userId, ...profileData } });
       if (socialAccounts.length) {
         await tx.socialAccount.createMany({
           data: socialAccounts.map((account) => ({ ...account, creatorId: profile.id })),
+          skipDuplicates: true,
         });
       }
       if (portfolioItem) {
@@ -38,35 +42,43 @@ export const creatorRepository = {
       }
 
       const user = await tx.user.findUnique({ where: { id: userId }, select: { roles: true } });
-      const updatedUser = await tx.user.update({
+      await tx.user.update({
         where: { id: userId },
         data: { roles: Array.from(new Set([...user.roles, 'CREATOR'])) },
+      });
+    });
+    const [profile, user] = await Promise.all([
+      prisma.creatorProfile.findUnique({ where: { userId }, include: includeProfile }),
+      prisma.user.findUnique({
+        where: { id: userId },
         include: {
           creatorProfile: { select: { id: true } },
           businessProfile: { select: { id: true } },
         },
-      });
-      return {
-        profile: await tx.creatorProfile.findUnique({ where: { userId }, include: includeProfile }),
-        user: updatedUser,
-      };
-    });
+      }),
+    ]);
+    return {
+      profile,
+      user,
+    };
   },
 
   async update(userId, profileData, socialAccounts) {
-    return prisma.$transaction(async (tx) => {
+    await prisma.$transaction(async (tx) => {
       const current = await tx.creatorProfile.findUnique({ where: { userId }, select: { id: true } });
       await tx.creatorProfile.update({ where: { userId }, data: profileData });
       if (socialAccounts) {
-        await tx.socialAccount.deleteMany({ where: { creatorId: current.id } });
+        // Profile edits may replace manual links, but must never delete OAuth tokens or verified stats.
+        await tx.socialAccount.deleteMany({ where: { creatorId: current.id, syncStatus: 'MANUAL' } });
         if (socialAccounts.length) {
           await tx.socialAccount.createMany({
             data: socialAccounts.map((account) => ({ ...account, creatorId: current.id })),
+            skipDuplicates: true,
           });
         }
       }
-      return tx.creatorProfile.findUnique({ where: { userId }, include: includeProfile });
     });
+    return prisma.creatorProfile.findUnique({ where: { userId }, include: includeProfile });
   },
 
   async remove(userId) {

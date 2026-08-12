@@ -3,7 +3,6 @@ import { useNavigate } from 'react-router-dom'
 import { DashboardHeader, DashboardPage } from '../../components/dashboard/DashboardUI'
 import { Avatar, AuroraBackground, Badge, Button, EmptyState, SpotlightCard } from '../../components/ui'
 import { useCollaboration } from '../../context/collaboration-context'
-import { campaigns, creators } from '../../data/marketplace'
 
 const statusMeta = {
   NEGOTIATION: { label: 'Negotiation', variant: 'pink' },
@@ -30,9 +29,7 @@ function initials(name = '') {
 }
 
 function workspaceCover(workspace) {
-  const campaign = campaigns.find((item) => item.id === workspace.campaign?.id || item.title === workspace.campaign?.title)
-  const creator = creators.find((item) => item.id === workspace.creator?.id || item.name === workspace.creator?.name)
-  return campaign?.image || creator?.cover || workspace.creator?.avatar
+  return workspace.creator?.avatar || workspace.business?.avatar
 }
 
 export function CollaborationListPage({ role }) {

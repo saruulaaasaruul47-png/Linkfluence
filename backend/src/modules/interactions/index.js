@@ -1,1 +1,1 @@
-export { interactionRouter } from './interaction.routes.js';
+export { interactionRouter, publicInteractionRouter } from './interaction.routes.js';

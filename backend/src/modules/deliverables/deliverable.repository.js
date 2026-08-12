@@ -10,6 +10,7 @@ export const deliverableRepository = {
       include: {
         business: { select: { userId: true } },
         creator: { select: { userId: true } },
+        contract: true,
         payments: { orderBy: { createdAt: 'desc' } },
         deliverables: { orderBy: [{ createdAt: 'asc' }, { version: 'asc' }] },
       },

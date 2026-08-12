@@ -27,37 +27,70 @@ model User {
   updatedAt       DateTime      @updatedAt
   deletedAt       DateTime?
 
-  creatorProfile      CreatorProfile?
-  businessProfile     BusinessProfile?
-  authTokens          AuthToken[]
-  verificationCodes   VerificationCode[]
-  conversationMembers ConversationMember[]
-  messages            Message[]
-  notifications       Notification[]
-  collections         Collection[]
-  following           Follow[]
-  savedItems          SavedItem[]
-  recentViews         RecentView[]
-  shareEvents         ShareEvent[]
-  showcaseReactions   ShowcaseReaction[]
-  reviewsWritten      Review[]                @relation("ReviewAuthor")
-  reviewsReceived     Review[]                @relation("ReviewSubject")
-  deliverables        Deliverable[]
-  analyticsEvents     AnalyticsEvent[]
-  reportedCases       TrustCase[]             @relation("CaseReporter")
-  assignedCases       TrustCase[]             @relation("CaseAssignee")
-  adminActions        AdminAction[]           @relation("AdminActor")
-  mediaAssets         MediaAsset[]
-  offerRevisions      OfferRevision[]
-  agreementVersions   AgreementVersion[]
-  collaborationTasks  CollaborationTask[]
-  collaborationFiles  CollaborationFile[]
-  collaborationEvents CollaborationActivity[]
-  paymentMethods      PaymentMethod[]
-  paymentRefunds      PaymentRefund[]
-  paymentPayouts      PaymentPayout[]
+  creatorProfile             CreatorProfile?
+  businessProfile            BusinessProfile?
+  authTokens                 AuthToken[]
+  authIdentities             AuthIdentity[]
+  verificationCodes          VerificationCode[]
+  conversationMembers        ConversationMember[]
+  messages                   Message[]
+  sentMessageRequests        MessageRequest[]        @relation("MessageRequestSender")
+  receivedMessageRequests    MessageRequest[]        @relation("MessageRequestRecipient")
+  notifications              Notification[]
+  notificationPreference     NotificationPreference?
+  collections                Collection[]
+  following                  Follow[]
+  savedItems                 SavedItem[]
+  recentViews                RecentView[]
+  shareEvents                ShareEvent[]
+  showcaseReactions          ShowcaseReaction[]
+  contentReactions           ContentReaction[]
+  blocks                     UserBlock[]
+  mutedChannels              ChannelMute[]
+  reviewsWritten             Review[]                @relation("ReviewAuthor")
+  reviewsReceived            Review[]                @relation("ReviewSubject")
+  deliverables               Deliverable[]
+  analyticsEvents            AnalyticsEvent[]
+  reportedCases              TrustCase[]             @relation("CaseReporter")
+  assignedCases              TrustCase[]             @relation("CaseAssignee")
+  adminActions               AdminAction[]           @relation("AdminActor")
+  platformSettingsUpdated    PlatformSetting[]       @relation("PlatformSettingUpdater")
+  featureFlagsUpdated        FeatureFlag[]           @relation("FeatureFlagUpdater")
+  moderatedContentPosts      ContentPost[]           @relation("ContentPostModerator")
+  mediaAssets                MediaAsset[]
+  campaignAttachments        CampaignAttachment[]
+  offerRevisions             OfferRevision[]
+  agreementVersions          AgreementVersion[]
+  collaborationTasks         CollaborationTask[]     @relation("CollaborationTaskCreatedBy")
+  assignedCollaborationTasks CollaborationTask[]     @relation("CollaborationTaskAssignee")
+  collaborationFiles         CollaborationFile[]
+  collaborationEvents        CollaborationActivity[]
+  paymentMethods             PaymentMethod[]
+  paymentRefunds             PaymentRefund[]
+  paymentPayouts             PaymentPayout[]
+  payoutAccounts             PayoutAccount[]
+  ledgerAccounts             LedgerAccount[]
+  walletTopUps               WalletTopUp[]
+  publishProofs              PublishProof[]
+  showcaseConsents           ShowcaseConsent[]
+  socialOAuthStates          SocialOAuthState[]
 
   @@index([status, createdAt])
+}
+
+model AuthIdentity {
+  id        String       @id @default(cuid())
+  userId    String
+  provider  AuthProvider
+  subject   String
+  email     String
+  createdAt DateTime     @default(now())
+  updatedAt DateTime     @updatedAt
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@unique([provider, subject])
+  @@index([userId])
 }
 
 model AuthToken {
@@ -129,16 +162,18 @@ model CreatorProfile {
   createdAt           DateTime           @default(now())
   updatedAt           DateTime           @updatedAt
 
-  user              User                 @relation(fields: [userId], references: [id], onDelete: Cascade)
-  socialAccounts    SocialAccount[]
-  portfolioItems    PortfolioItem[]
-  proposals         Proposal[]
-  receivedOffers    WorkOffer[]
-  collaborations    Collaboration[]
-  showcasePosts     ShowcasePost[]
-  shortlistEntries  CreatorShortlist[]
-  comparisonEntries CreatorComparison[]
-  invitations       CampaignInvitation[]
+  user                User                 @relation(fields: [userId], references: [id], onDelete: Cascade)
+  socialAccounts      SocialAccount[]
+  portfolioItems      PortfolioItem[]
+  proposals           Proposal[]
+  receivedOffers      WorkOffer[]
+  collaborations      Collaboration[]
+  showcasePosts       ShowcasePost[]
+  contentPosts        ContentPost[]        @relation("ContentPostCreatorAuthor")
+  partnerContentPosts ContentPost[]        @relation("ContentPostPartnerCreator")
+  shortlistEntries    CreatorShortlist[]
+  comparisonEntries   CreatorComparison[]
+  invitations         CampaignInvitation[]
 
   @@index([verificationStatus, availableForWork])
   @@index([channelName])
@@ -168,13 +203,16 @@ model BusinessProfile {
   createdAt          DateTime           @default(now())
   updatedAt          DateTime           @updatedAt
 
-  user             User                 @relation(fields: [userId], references: [id], onDelete: Cascade)
-  campaigns        Campaign[]
-  sentOffers       WorkOffer[]
-  collaborations   Collaboration[]
-  shortlistEntries CreatorShortlist[]
-  comparisons      CreatorComparison[]
-  invitations      CampaignInvitation[]
+  user                User                 @relation(fields: [userId], references: [id], onDelete: Cascade)
+  campaigns           Campaign[]
+  sentOffers          WorkOffer[]
+  collaborations      Collaboration[]
+  shortlistEntries    CreatorShortlist[]
+  comparisons         CreatorComparison[]
+  invitations         CampaignInvitation[]
+  contentPosts        ContentPost[]        @relation("ContentPostBusinessAuthor")
+  partnerContentPosts ContentPost[]        @relation("ContentPostPartnerBusiness")
+  socialAccounts      SocialAccount[]
 
   @@index([verificationStatus, createdAt])
   @@index([companyName])
@@ -184,46 +222,161 @@ model BusinessProfile {
 }
 
 model SocialAccount {
-  id                 String             @id @default(cuid())
-  creatorId          String
-  platform           SocialPlatform
-  handle             String
-  profileUrl         String?
-  followerCount      Int                @default(0)
-  engagementRate     Decimal?           @db.Decimal(6, 3)
-  verificationStatus VerificationStatus @default(UNVERIFIED)
-  metadata           Json?
-  createdAt          DateTime           @default(now())
-  updatedAt          DateTime           @updatedAt
+  id                    String             @id @default(cuid())
+  creatorId             String?
+  businessId            String?
+  platform              SocialPlatform
+  handle                String
+  profileUrl            String?
+  providerAccountId     String?
+  providerPageId        String?
+  accessTokenEncrypted  String?            @db.Text
+  refreshTokenEncrypted String?            @db.Text
+  tokenExpiresAt        DateTime?
+  followerCount         Int                @default(0)
+  engagementRate        Decimal?           @db.Decimal(6, 3)
+  verificationStatus    VerificationStatus @default(UNVERIFIED)
+  syncStatus            SocialSyncStatus   @default(MANUAL)
+  lastSyncAt            DateTime?
+  syncError             String?
+  connectedAt           DateTime?
+  metadata              Json?
+  createdAt             DateTime           @default(now())
+  updatedAt             DateTime           @updatedAt
 
-  creator CreatorProfile @relation(fields: [creatorId], references: [id], onDelete: Cascade)
+  creator       CreatorProfile?    @relation(fields: [creatorId], references: [id], onDelete: Cascade)
+  business      BusinessProfile?   @relation(fields: [businessId], references: [id], onDelete: Cascade)
+  stats         SocialStat[]
+  mediaItems    SocialMediaItem[]
+  publishProofs PublishProof[]
+  oauthStates   SocialOAuthState[]
 
   @@unique([platform, handle])
   @@unique([creatorId, platform])
+  @@unique([businessId, platform])
+  @@unique([platform, providerAccountId])
   @@index([platform, followerCount])
+  @@index([syncStatus, lastSyncAt])
+  @@index([businessId, platform])
+}
+
+model SocialStat {
+  id              String   @id @default(cuid())
+  socialAccountId String
+  followerCount   Int
+  followingCount  Int?
+  mediaCount      Int?
+  reach           Int?
+  impressions     Int?
+  engagementCount Int?
+  engagementRate  Decimal? @db.Decimal(8, 4)
+  raw             Json?
+  capturedAt      DateTime @default(now())
+
+  socialAccount SocialAccount @relation(fields: [socialAccountId], references: [id], onDelete: Cascade)
+
+  @@index([socialAccountId, capturedAt(sort: Desc)])
+}
+
+model SocialOAuthState {
+  id                    String            @id @default(cuid())
+  userId                String
+  provider              SocialPlatform
+  channelType           SocialChannelType @default(CREATOR)
+  tokenHash             String            @unique
+  selectionTokenHash    String?           @unique
+  accessTokenEncrypted  String?           @db.Text
+  refreshTokenEncrypted String?           @db.Text
+  tokenExpiresAt        DateTime?
+  candidates            Json?
+  redirectTo            String?
+  expiresAt             DateTime
+  consumedAt            DateTime?
+  resultAccountId       String?
+  createdAt             DateTime          @default(now())
+
+  user          User           @relation(fields: [userId], references: [id], onDelete: Cascade)
+  resultAccount SocialAccount? @relation(fields: [resultAccountId], references: [id], onDelete: SetNull)
+
+  @@index([userId, provider, expiresAt])
+  @@index([selectionTokenHash, expiresAt])
+}
+
+model SocialMediaItem {
+  id              String    @id @default(cuid())
+  socialAccountId String
+  externalMediaId String
+  mediaType       String
+  caption         String?
+  permalink       String?
+  thumbnailUrl    String?
+  mediaUrl        String?
+  publishedAt     DateTime?
+  lastSyncedAt    DateTime  @default(now())
+  createdAt       DateTime  @default(now())
+  updatedAt       DateTime  @updatedAt
+
+  socialAccount SocialAccount             @relation(fields: [socialAccountId], references: [id], onDelete: Cascade)
+  stats         SocialMediaStatSnapshot[]
+
+  @@unique([socialAccountId, externalMediaId])
+  @@index([socialAccountId, publishedAt(sort: Desc)])
+}
+
+model SocialMediaStatSnapshot {
+  id           String   @id @default(cuid())
+  mediaItemId  String
+  likeCount    Int?
+  commentCount Int?
+  savedCount   Int?
+  shareCount   Int?
+  reach        Int?
+  impressions  Int?
+  plays        Int?
+  capturedAt   DateTime @default(now())
+
+  mediaItem SocialMediaItem @relation(fields: [mediaItemId], references: [id], onDelete: Cascade)
+
+  @@index([mediaItemId, capturedAt(sort: Desc)])
+}
+
+model SocialWebhookEvent {
+  id          String    @id @default(cuid())
+  eventHash   String    @unique
+  provider    String
+  objectType  String?
+  entryCount  Int       @default(0)
+  receivedAt  DateTime  @default(now())
+  processedAt DateTime?
+
+  @@index([provider, receivedAt(sort: Desc)])
 }
 
 model PortfolioItem {
-  id           String          @id @default(cuid())
-  creatorId    String
-  mediaAssetId String?
-  title        String
-  description  String?
-  category     String?
-  mediaType    MediaType
-  mediaUrl     String
-  thumbnailUrl String?
-  statistics   Json?
-  status       PortfolioStatus @default(PUBLISHED)
-  sortOrder    Int             @default(0)
-  publishedAt  DateTime?
-  deletedAt    DateTime?
-  createdAt    DateTime        @default(now())
-  updatedAt    DateTime        @updatedAt
+  id              String          @id @default(cuid())
+  creatorId       String
+  mediaAssetId    String?
+  collaborationId String?         @unique
+  title           String
+  description     String?
+  category        String?
+  mediaType       MediaType
+  mediaUrl        String
+  thumbnailUrl    String?
+  statistics      Json?
+  status          PortfolioStatus @default(PUBLISHED)
+  verified        Boolean         @default(false)
+  sortOrder       Int             @default(0)
+  publishedAt     DateTime?
+  deletedAt       DateTime?
+  createdAt       DateTime        @default(now())
+  updatedAt       DateTime        @updatedAt
 
   creator       CreatorProfile @relation(fields: [creatorId], references: [id], onDelete: Cascade)
   mediaAsset    MediaAsset?    @relation(fields: [mediaAssetId], references: [id], onDelete: SetNull)
+  collaboration Collaboration? @relation(fields: [collaborationId], references: [id], onDelete: SetNull)
   showcasePosts ShowcasePost[]
+  contentPosts  ContentPost[]
 
   @@index([creatorId, status, sortOrder])
   @@index([creatorId, deletedAt, createdAt])
@@ -242,10 +395,15 @@ model MediaAsset {
   createdAt    DateTime     @default(now())
   deletedAt    DateTime?
 
-  owner              User                @relation(fields: [ownerId], references: [id], onDelete: Cascade)
-  portfolioItems     PortfolioItem[]
-  collaborationFiles CollaborationFile[]
-  deliverables       Deliverable[]
+  owner               User                 @relation(fields: [ownerId], references: [id], onDelete: Cascade)
+  portfolioItems      PortfolioItem[]
+  collaborationFiles  CollaborationFile[]
+  deliverables        Deliverable[]
+  publishProofs       PublishProof[]
+  contentMedia        ContentMedia[]       @relation("ContentMediaAsset")
+  contentThumbnails   ContentMedia[]       @relation("ContentMediaThumbnail")
+  contentAudioPosts   ContentPost[]        @relation("ContentPostAudio")
+  campaignAttachments CampaignAttachment[]
 
   @@index([ownerId, purpose, createdAt])
   @@index([deletedAt])
@@ -279,16 +437,40 @@ model Campaign {
   shortlistEntries CreatorShortlist[]
   comparisons      CreatorComparison[]
   invitations      CampaignInvitation[]
+  contentPosts     ContentPost[]
 
   goal                String?
   deliverables        Json?
   applicationDeadline DateTime?
   version             Int       @default(1)
   archivedAt          DateTime?
+  productSupport      Json?
+
+  attachments CampaignAttachment[]
 
   @@index([businessId, status])
   @@index([status, category, publishedAt])
   @@index([deadline])
+}
+
+model CampaignAttachment {
+  id           String                 @id @default(cuid())
+  campaignId   String
+  uploadedById String
+  mediaAssetId String?
+  name         String
+  url          String
+  mimeType     String?
+  sizeBytes    Int?
+  kind         CampaignAttachmentKind @default(BRIEF)
+  createdAt    DateTime               @default(now())
+
+  campaign   Campaign    @relation(fields: [campaignId], references: [id], onDelete: Cascade)
+  uploadedBy User        @relation(fields: [uploadedById], references: [id], onDelete: Restrict)
+  mediaAsset MediaAsset? @relation(fields: [mediaAssetId], references: [id], onDelete: SetNull)
+
+  @@index([campaignId, createdAt])
+  @@index([mediaAssetId])
 }
 
 model Proposal {
@@ -316,23 +498,27 @@ model Proposal {
 }
 
 model WorkOffer {
-  id           String      @id @default(cuid())
-  businessId   String
-  creatorId    String
-  campaignId   String?
-  title        String
-  contentType  String
-  budget       Decimal
-  currency     String      @default("MNT")
-  timeline     String
-  message      String?
-  counterTerms Json?
-  finalTerms   Json?
-  status       OfferStatus @default(PENDING_CREATOR_RESPONSE)
-  respondedAt  DateTime?
-  version      Int         @default(1)
-  createdAt    DateTime    @default(now())
-  updatedAt    DateTime    @updatedAt
+  id            String                   @id @default(cuid())
+  sourceType    WorkOfferSource          @default(DIRECT)
+  sourceId      String?
+  businessId    String
+  creatorId     String
+  campaignId    String?
+  title         String
+  contentType   String
+  budget        Decimal
+  paymentType   CollaborationPaymentType @default(PAID)
+  barterDetails Json?
+  currency      String                   @default("MNT")
+  timeline      String
+  message       String?
+  counterTerms  Json?
+  finalTerms    Json?
+  status        OfferStatus              @default(PENDING_CREATOR_RESPONSE)
+  respondedAt   DateTime?
+  version       Int                      @default(1)
+  createdAt     DateTime                 @default(now())
+  updatedAt     DateTime                 @updatedAt
 
   business      BusinessProfile @relation(fields: [businessId], references: [id], onDelete: Cascade)
   creator       CreatorProfile  @relation(fields: [creatorId], references: [id], onDelete: Cascade)
@@ -340,6 +526,7 @@ model WorkOffer {
   collaboration Collaboration?
   revisions     OfferRevision[]
 
+  @@unique([sourceType, sourceId])
   @@index([creatorId, status])
   @@index([businessId, status])
 }
@@ -364,25 +551,31 @@ model OfferRevision {
 // Collaboration workspace and contract
 
 model Collaboration {
-  id                          String              @id @default(cuid())
-  offerId                     String?             @unique
+  id                          String                   @id @default(cuid())
+  offerId                     String?                  @unique
   campaignId                  String?
   businessId                  String
   creatorId                   String
-  status                      CollaborationStatus @default(NEGOTIATION)
-  progress                    Int                 @default(0)
-  version                     Int                 @default(1)
-  termsVersion                Int                 @default(1)
+  status                      CollaborationStatus      @default(NEGOTIATION)
+  progress                    Int                      @default(0)
+  version                     Int                      @default(1)
+  termsVersion                Int                      @default(1)
   terms                       Json
+  paymentType                 CollaborationPaymentType @default(PAID)
+  cashAmount                  Decimal                  @default(0) @db.Decimal(18, 2)
+  barterEstimatedValue        Decimal?                 @db.Decimal(18, 2)
+  barterDetails               Json?
   tasks                       Json?
   files                       Json?
   timeline                    Json?
   activity                    Json?
   creatorAgreementApprovedAt  DateTime?
   businessAgreementApprovedAt DateTime?
+  autoApprovalDueAt           DateTime?
+  settlementDueAt             DateTime?
   completedAt                 DateTime?
-  createdAt                   DateTime            @default(now())
-  updatedAt                   DateTime            @updatedAt
+  createdAt                   DateTime                 @default(now())
+  updatedAt                   DateTime                 @updatedAt
 
   offer             WorkOffer?              @relation(fields: [offerId], references: [id], onDelete: SetNull)
   campaign          Campaign?               @relation(fields: [campaignId], references: [id], onDelete: SetNull)
@@ -398,6 +591,12 @@ model Collaboration {
   workspaceFiles    CollaborationFile[]
   activities        CollaborationActivity[]
   showcasePost      ShowcasePost?
+  publishProofs     PublishProof[]
+  showcaseConsents  ShowcaseConsent[]
+  ledgerEntries     LedgerEntry[]
+  platformRevenue   PlatformRevenue[]
+  contentPosts      ContentPost[]
+  portfolioItem     PortfolioItem?
 
   @@index([businessId, status])
   @@index([creatorId, status])
@@ -424,21 +623,28 @@ model AgreementVersion {
 }
 
 model CollaborationTask {
-  id              String    @id @default(cuid())
+  id              String                    @id @default(cuid())
   collaborationId String
   createdById     String
+  assigneeId      String?
   title           String
   description     String?
   ownerRole       String
+  status          CollaborationTaskStatus   @default(TODO)
+  priority        CollaborationTaskPriority @default(MEDIUM)
+  sortOrder       Int                       @default(0)
+  version         Int                       @default(1)
   dueAt           DateTime?
   completedAt     DateTime?
-  createdAt       DateTime  @default(now())
-  updatedAt       DateTime  @updatedAt
+  createdAt       DateTime                  @default(now())
+  updatedAt       DateTime                  @updatedAt
 
   collaboration Collaboration @relation(fields: [collaborationId], references: [id], onDelete: Cascade)
-  createdBy     User          @relation(fields: [createdById], references: [id], onDelete: Restrict)
+  createdBy     User          @relation("CollaborationTaskCreatedBy", fields: [createdById], references: [id], onDelete: Restrict)
+  assignee      User?         @relation("CollaborationTaskAssignee", fields: [assigneeId], references: [id], onDelete: SetNull)
 
-  @@index([collaborationId, completedAt])
+  @@index([collaborationId, status, sortOrder])
+  @@index([assigneeId, status])
 }
 
 model CollaborationFile {
@@ -476,16 +682,22 @@ model CollaborationActivity {
 }
 
 model Contract {
-  id               String         @id @default(cuid())
-  collaborationId  String         @unique
-  status           ContractStatus @default(DRAFT)
-  currentVersion   Int            @default(1)
-  creatorSignedAt  DateTime?
-  businessSignedAt DateTime?
-  activatedAt      DateTime?
-  terminatedAt     DateTime?
-  createdAt        DateTime       @default(now())
-  updatedAt        DateTime       @updatedAt
+  id                    String         @id @default(cuid())
+  collaborationId       String         @unique
+  status                ContractStatus @default(DRAFT)
+  currentVersion        Int            @default(1)
+  creatorSignedAt       DateTime?
+  businessSignedAt      DateTime?
+  activatedAt           DateTime?
+  terminatedAt          DateTime?
+  revisionLimit         Int            @default(2)
+  publishBy             DateTime?
+  publishReminderSentAt DateTime?
+  retentionDays         Int            @default(30)
+  disputeWindowDays     Int            @default(7)
+  disclosureRequired    Boolean        @default(true)
+  createdAt             DateTime       @default(now())
+  updatedAt             DateTime       @updatedAt
 
   collaboration Collaboration     @relation(fields: [collaborationId], references: [id], onDelete: Cascade)
   versions      ContractVersion[]
@@ -528,11 +740,12 @@ model Deliverable {
   createdAt       DateTime          @default(now())
   updatedAt       DateTime          @updatedAt
 
-  collaboration Collaboration @relation(fields: [collaborationId], references: [id], onDelete: Cascade)
-  uploadedBy    User          @relation(fields: [uploadedById], references: [id], onDelete: Restrict)
-  mediaAsset    MediaAsset?   @relation(fields: [mediaAssetId], references: [id], onDelete: SetNull)
-  revisionOf    Deliverable?  @relation("DeliverableRevisions", fields: [revisionOfId], references: [id], onDelete: SetNull)
-  revisions     Deliverable[] @relation("DeliverableRevisions")
+  collaboration Collaboration  @relation(fields: [collaborationId], references: [id], onDelete: Cascade)
+  uploadedBy    User           @relation(fields: [uploadedById], references: [id], onDelete: Restrict)
+  mediaAsset    MediaAsset?    @relation(fields: [mediaAssetId], references: [id], onDelete: SetNull)
+  revisionOf    Deliverable?   @relation("DeliverableRevisions", fields: [revisionOfId], references: [id], onDelete: SetNull)
+  revisions     Deliverable[]  @relation("DeliverableRevisions")
+  publishProofs PublishProof[]
 
   @@index([collaborationId, status])
   @@index([mediaAssetId])
@@ -543,13 +756,37 @@ model Deliverable {
 model Conversation {
   id              String   @id @default(cuid())
   collaborationId String?  @unique
+  directKey       String?  @unique
   title           String?
   createdAt       DateTime @default(now())
   updatedAt       DateTime @updatedAt
 
-  collaboration Collaboration?       @relation(fields: [collaborationId], references: [id], onDelete: SetNull)
-  members       ConversationMember[]
-  messages      Message[]
+  collaboration   Collaboration?       @relation(fields: [collaborationId], references: [id], onDelete: SetNull)
+  members         ConversationMember[]
+  messages        Message[]
+  messageRequests MessageRequest[]
+}
+
+model MessageRequest {
+  id             String               @id @default(cuid())
+  senderId       String
+  recipientId    String
+  senderRole     String
+  recipientRole  String
+  conversationId String?
+  initialMessage String               @db.Text
+  status         MessageRequestStatus @default(PENDING)
+  decidedAt      DateTime?
+  createdAt      DateTime             @default(now())
+  updatedAt      DateTime             @updatedAt
+
+  sender       User          @relation("MessageRequestSender", fields: [senderId], references: [id], onDelete: Cascade)
+  recipient    User          @relation("MessageRequestRecipient", fields: [recipientId], references: [id], onDelete: Cascade)
+  conversation Conversation? @relation(fields: [conversationId], references: [id], onDelete: SetNull)
+
+  @@index([recipientId, status, createdAt(sort: Desc)])
+  @@index([senderId, status, createdAt(sort: Desc)])
+  @@index([senderId, recipientId, status])
 }
 
 model ConversationMember {
@@ -586,19 +823,37 @@ model Message {
 }
 
 model Notification {
-  id        String           @id @default(cuid())
-  userId    String
-  type      NotificationType
-  title     String
-  body      String
-  href      String?
-  data      Json?
-  readAt    DateTime?
-  createdAt DateTime         @default(now())
+  id            String           @id @default(cuid())
+  userId        String
+  type          NotificationType
+  title         String
+  body          String
+  href          String?
+  data          Json?
+  sourceEventId String?
+  readAt        DateTime?
+  createdAt     DateTime         @default(now())
 
   user User @relation(fields: [userId], references: [id], onDelete: Cascade)
 
+  @@unique([userId, sourceEventId])
   @@index([userId, readAt, createdAt])
+}
+
+model NotificationPreference {
+  userId           String   @id
+  emailEnabled     Boolean  @default(true)
+  offerEmail       Boolean  @default(true)
+  proposalEmail    Boolean  @default(true)
+  contractEmail    Boolean  @default(true)
+  paymentEmail     Boolean  @default(true)
+  deliverableEmail Boolean  @default(true)
+  proofEmail       Boolean  @default(true)
+  payoutEmail      Boolean  @default(true)
+  deadlineEmail    Boolean  @default(true)
+  updatedAt        DateTime @updatedAt
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
 }
 
 // Library and social actions
@@ -717,6 +972,22 @@ model ShowcasePost {
   @@index([category, status])
 }
 
+model ShowcaseConsent {
+  id              String                  @id @default(cuid())
+  collaborationId String
+  userId          String
+  decision        ShowcaseConsentDecision @default(PENDING)
+  decidedAt       DateTime?
+  createdAt       DateTime                @default(now())
+  updatedAt       DateTime                @updatedAt
+
+  collaboration Collaboration @relation(fields: [collaborationId], references: [id], onDelete: Cascade)
+  user          User          @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@unique([collaborationId, userId])
+  @@index([userId, decision])
+}
+
 model ShowcaseReaction {
   id         String               @id @default(cuid())
   userId     String
@@ -729,6 +1000,128 @@ model ShowcaseReaction {
 
   @@unique([userId, showcaseId, type])
   @@index([showcaseId, type, createdAt])
+}
+
+// Canonical social content. ShowcasePost remains as a compatibility model for
+// completed-work publishing while all new creator/business posts use this model.
+model ContentPost {
+  id                     String             @id @default(cuid())
+  authorType             ContentAuthorType
+  creatorId              String?
+  businessId             String?
+  postType               ContentPostType    @default(ORIGINAL)
+  title                  String?
+  caption                String
+  storyStyle             Json?
+  audioAssetId           String?
+  audioTitle             String?
+  audioArtist            String?
+  audioStartMs           Int                @default(0)
+  audioVolume            Decimal?           @db.Decimal(4, 3)
+  audioRightsConfirmedAt DateTime?
+  category               String?
+  visibility             ContentVisibility  @default(PUBLIC)
+  status                 ContentPostStatus  @default(DRAFT)
+  campaignId             String?
+  portfolioItemId        String?
+  collaborationId        String?
+  paidPartnership        Boolean            @default(false)
+  partnerCreatorId       String?
+  partnerBusinessId      String?
+  publishedAt            DateTime?
+  expiresAt              DateTime?
+  archivedAt             DateTime?
+  deletedAt              DateTime?
+  hiddenAt               DateTime?
+  hiddenReason           String?
+  hiddenById             String?
+  statusBeforeHide       ContentPostStatus?
+  createdAt              DateTime           @default(now())
+  updatedAt              DateTime           @updatedAt
+
+  creator         CreatorProfile?   @relation("ContentPostCreatorAuthor", fields: [creatorId], references: [id], onDelete: Cascade)
+  business        BusinessProfile?  @relation("ContentPostBusinessAuthor", fields: [businessId], references: [id], onDelete: Cascade)
+  partnerCreator  CreatorProfile?   @relation("ContentPostPartnerCreator", fields: [partnerCreatorId], references: [id], onDelete: SetNull)
+  partnerBusiness BusinessProfile?  @relation("ContentPostPartnerBusiness", fields: [partnerBusinessId], references: [id], onDelete: SetNull)
+  campaign        Campaign?         @relation(fields: [campaignId], references: [id], onDelete: SetNull)
+  portfolioItem   PortfolioItem?    @relation(fields: [portfolioItemId], references: [id], onDelete: SetNull)
+  collaboration   Collaboration?    @relation(fields: [collaborationId], references: [id], onDelete: SetNull)
+  media           ContentMedia[]
+  audioAsset      MediaAsset?       @relation("ContentPostAudio", fields: [audioAssetId], references: [id], onDelete: SetNull)
+  reactions       ContentReaction[]
+  hiddenBy        User?             @relation("ContentPostModerator", fields: [hiddenById], references: [id], onDelete: SetNull)
+
+  @@index([status, visibility, publishedAt, id])
+  @@index([postType, status, expiresAt])
+  @@index([category, status, publishedAt])
+  @@index([creatorId, status, createdAt])
+  @@index([businessId, status, createdAt])
+  @@index([campaignId])
+  @@index([collaborationId])
+  @@index([hiddenAt, status])
+  @@index([audioAssetId])
+}
+
+model ContentMedia {
+  id               String    @id @default(cuid())
+  postId           String
+  mediaAssetId     String
+  thumbnailAssetId String?
+  mediaType        MediaType
+  sortOrder        Int       @default(0)
+  altText          String?
+  width            Int?
+  height           Int?
+  durationMs       Int?
+  createdAt        DateTime  @default(now())
+
+  post       ContentPost @relation(fields: [postId], references: [id], onDelete: Cascade)
+  mediaAsset MediaAsset  @relation("ContentMediaAsset", fields: [mediaAssetId], references: [id], onDelete: Cascade)
+  thumbnail  MediaAsset? @relation("ContentMediaThumbnail", fields: [thumbnailAssetId], references: [id], onDelete: SetNull)
+
+  @@unique([postId, mediaAssetId])
+  @@index([postId, sortOrder])
+  @@index([mediaAssetId])
+}
+
+model ContentReaction {
+  id        String              @id @default(cuid())
+  userId    String
+  postId    String
+  type      ContentReactionType @default(LIKE)
+  createdAt DateTime            @default(now())
+
+  user User        @relation(fields: [userId], references: [id], onDelete: Cascade)
+  post ContentPost @relation(fields: [postId], references: [id], onDelete: Cascade)
+
+  @@unique([userId, postId, type])
+  @@index([postId, type, createdAt])
+}
+
+model UserBlock {
+  id         String            @id @default(cuid())
+  blockerId  String
+  targetType ContentAuthorType
+  targetId   String
+  createdAt  DateTime          @default(now())
+
+  blocker User @relation(fields: [blockerId], references: [id], onDelete: Cascade)
+
+  @@unique([blockerId, targetType, targetId])
+  @@index([targetType, targetId, createdAt])
+}
+
+model ChannelMute {
+  id         String            @id @default(cuid())
+  userId     String
+  targetType ContentAuthorType
+  targetId   String
+  createdAt  DateTime          @default(now())
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@unique([userId, targetType, targetId])
+  @@index([targetType, targetId, createdAt])
 }
 
 model CreatorShortlist {
@@ -788,29 +1181,41 @@ model CampaignInvitation {
 // Finance, reviews, trust and analytics
 
 model Payment {
-  id               String        @id @default(cuid())
-  collaborationId  String
-  parentId         String?
-  type             PaymentType
-  status           PaymentStatus @default(PENDING)
-  amount           Decimal       @db.Decimal(18, 2)
-  platformFee      Decimal       @default(0) @db.Decimal(18, 2)
-  currency         String        @default("MNT")
-  provider         String?
-  providerRef      String?       @unique
-  paymentMethodRef String?
-  failureReason    String?
-  metadata         Json?
-  processedAt      DateTime?
-  createdAt        DateTime      @default(now())
-  updatedAt        DateTime      @updatedAt
+  id                   String                   @id @default(cuid())
+  collaborationId      String
+  parentId             String?
+  type                 PaymentType
+  compensationType     CollaborationPaymentType @default(PAID)
+  status               PaymentStatus            @default(PENDING)
+  amount               Decimal                  @db.Decimal(18, 2)
+  cashAmount           Decimal                  @default(0) @db.Decimal(18, 2)
+  barterEstimatedValue Decimal?                 @db.Decimal(18, 2)
+  commissionRate       Decimal                  @default(0) @db.Decimal(7, 4)
+  commissionAmount     Decimal                  @default(0) @db.Decimal(18, 2)
+  creatorAmount        Decimal                  @default(0) @db.Decimal(18, 2)
+  platformFee          Decimal                  @default(0) @db.Decimal(18, 2)
+  currency             String                   @default("MNT")
+  provider             String?
+  providerRef          String?                  @unique
+  idempotencyKey       String?                  @unique
+  paymentMethodRef     String?
+  failureReason        String?
+  metadata             Json?
+  processedAt          DateTime?
+  fundedAt             DateTime?
+  releasedAt           DateTime?
+  refundedAt           DateTime?
+  createdAt            DateTime                 @default(now())
+  updatedAt            DateTime                 @updatedAt
 
-  collaboration  Collaboration          @relation(fields: [collaborationId], references: [id], onDelete: Restrict)
-  parent         Payment?               @relation("PaymentAdjustments", fields: [parentId], references: [id], onDelete: SetNull)
-  adjustments    Payment[]              @relation("PaymentAdjustments")
-  providerEvents PaymentProviderEvent[]
-  refundRequests PaymentRefund[]
-  payoutRequests PaymentPayout[]
+  collaboration   Collaboration          @relation(fields: [collaborationId], references: [id], onDelete: Restrict)
+  parent          Payment?               @relation("PaymentAdjustments", fields: [parentId], references: [id], onDelete: SetNull)
+  adjustments     Payment[]              @relation("PaymentAdjustments")
+  providerEvents  PaymentProviderEvent[]
+  refundRequests  PaymentRefund[]
+  payoutRequests  PaymentPayout[]
+  ledgerEntries   LedgerEntry[]
+  platformRevenue PlatformRevenue?
 
   @@index([collaborationId, type, status])
   @@index([status, createdAt])
@@ -820,6 +1225,7 @@ model PaymentProviderEvent {
   id              String    @id @default(cuid())
   providerEventId String    @unique
   paymentId       String?
+  walletTopUpId   String?
   provider        String
   eventType       String
   payload         Json
@@ -828,10 +1234,53 @@ model PaymentProviderEvent {
   failureReason   String?
   createdAt       DateTime  @default(now())
 
-  payment Payment? @relation(fields: [paymentId], references: [id], onDelete: SetNull)
+  payment     Payment?     @relation(fields: [paymentId], references: [id], onDelete: SetNull)
+  walletTopUp WalletTopUp? @relation(fields: [walletTopUpId], references: [id], onDelete: SetNull)
 
   @@index([paymentId, createdAt])
+  @@index([walletTopUpId, createdAt])
   @@index([eventType, createdAt])
+}
+
+model WalletTopUp {
+  id             String            @id @default(cuid())
+  userId         String
+  amount         Decimal           @db.Decimal(18, 2)
+  currency       String            @default("MNT")
+  status         WalletTopUpStatus @default(PENDING)
+  provider       String
+  providerRef    String?           @unique
+  idempotencyKey String            @unique
+  metadata       Json?
+  failureReason  String?
+  completedAt    DateTime?
+  createdAt      DateTime          @default(now())
+  updatedAt      DateTime          @updatedAt
+
+  user           User                   @relation(fields: [userId], references: [id], onDelete: Restrict)
+  providerEvents PaymentProviderEvent[]
+
+  @@index([userId, status, createdAt])
+}
+
+model PlatformRevenue {
+  id              String                @id @default(cuid())
+  paymentId       String?               @unique
+  collaborationId String
+  source          PlatformRevenueSource
+  status          PlatformRevenueStatus @default(PENDING)
+  amount          Decimal               @db.Decimal(18, 2)
+  currency        String                @default("MNT")
+  earnedAt        DateTime?
+  refundedAt      DateTime?
+  createdAt       DateTime              @default(now())
+  updatedAt       DateTime              @updatedAt
+
+  payment       Payment?      @relation(fields: [paymentId], references: [id], onDelete: Restrict)
+  collaboration Collaboration @relation(fields: [collaborationId], references: [id], onDelete: Restrict)
+
+  @@index([status, source, createdAt])
+  @@index([collaborationId])
 }
 
 model PaymentMethod {
@@ -871,32 +1320,178 @@ model PaymentRefund {
 }
 
 model PaymentPayout {
-  id          String        @id @default(cuid())
-  paymentId   String
-  creatorId   String
-  amount      Decimal       @db.Decimal(18, 2)
-  status      PaymentStatus @default(PENDING)
-  providerRef String?       @unique
-  processedAt DateTime?
-  createdAt   DateTime      @default(now())
-  updatedAt   DateTime      @updatedAt
+  id              String        @id @default(cuid())
+  paymentId       String
+  creatorId       String
+  payoutAccountId String?
+  amount          Decimal       @db.Decimal(18, 2)
+  status          PaymentStatus @default(PENDING)
+  providerRef     String?       @unique
+  approvedAt      DateTime?
+  rejectedAt      DateTime?
+  rejectionReason String?
+  processedAt     DateTime?
+  createdAt       DateTime      @default(now())
+  updatedAt       DateTime      @updatedAt
 
-  payment Payment @relation(fields: [paymentId], references: [id], onDelete: Restrict)
-  creator User    @relation(fields: [creatorId], references: [id], onDelete: Restrict)
+  payment       Payment        @relation(fields: [paymentId], references: [id], onDelete: Restrict)
+  creator       User           @relation(fields: [creatorId], references: [id], onDelete: Restrict)
+  payoutAccount PayoutAccount? @relation(fields: [payoutAccountId], references: [id], onDelete: Restrict)
 
   @@index([creatorId, status])
+  @@index([payoutAccountId, status])
+}
+
+model PayoutAccount {
+  id                     String    @id @default(cuid())
+  userId                 String
+  provider               String
+  accountName            String
+  accountNumberEncrypted String    @db.Text
+  bankCode               String?
+  last4                  String
+  currency               String    @default("MNT")
+  isDefault              Boolean   @default(false)
+  verifiedAt             DateTime?
+  createdAt              DateTime  @default(now())
+  updatedAt              DateTime  @updatedAt
+
+  user    User            @relation(fields: [userId], references: [id], onDelete: Cascade)
+  payouts PaymentPayout[]
+
+  @@index([userId, isDefault])
+}
+
+model LedgerAccount {
+  id        String            @id @default(cuid())
+  ownerId   String?
+  code      String            @unique
+  type      LedgerAccountType
+  currency  String            @default("MNT")
+  balance   Decimal           @default(0) @db.Decimal(18, 2)
+  createdAt DateTime          @default(now())
+  updatedAt DateTime          @updatedAt
+
+  owner         User?         @relation(fields: [ownerId], references: [id], onDelete: Restrict)
+  debitEntries  LedgerEntry[] @relation("LedgerDebitAccount")
+  creditEntries LedgerEntry[] @relation("LedgerCreditAccount")
+
+  @@unique([ownerId, type, currency])
+  @@index([type, currency])
+}
+
+model LedgerEntry {
+  id              String          @id @default(cuid())
+  debitAccountId  String
+  creditAccountId String
+  collaborationId String?
+  paymentId       String?
+  type            LedgerEntryType
+  amount          Decimal         @db.Decimal(18, 2)
+  currency        String          @default("MNT")
+  idempotencyKey  String          @unique
+  postingBatchId  String
+  description     String
+  metadata        Json?
+  occurredAt      DateTime        @default(now())
+  createdAt       DateTime        @default(now())
+
+  debitAccount  LedgerAccount  @relation("LedgerDebitAccount", fields: [debitAccountId], references: [id], onDelete: Restrict)
+  creditAccount LedgerAccount  @relation("LedgerCreditAccount", fields: [creditAccountId], references: [id], onDelete: Restrict)
+  collaboration Collaboration? @relation(fields: [collaborationId], references: [id], onDelete: Restrict)
+  payment       Payment?       @relation(fields: [paymentId], references: [id], onDelete: Restrict)
+
+  @@index([debitAccountId, occurredAt])
+  @@index([creditAccountId, occurredAt])
+  @@index([collaborationId, occurredAt])
+  @@index([paymentId])
+  @@index([postingBatchId])
+}
+
+model ReconciliationRun {
+  id             String               @id @default(cuid())
+  provider       String
+  status         ReconciliationStatus @default(PENDING)
+  periodStart    DateTime
+  periodEnd      DateTime
+  providerTotal  Decimal?             @db.Decimal(18, 2)
+  ledgerTotal    Decimal?             @db.Decimal(18, 2)
+  discrepancy    Decimal?             @db.Decimal(18, 2)
+  checkedRecords Int                  @default(0)
+  mismatchCount  Int                  @default(0)
+  details        Json?
+  startedAt      DateTime             @default(now())
+  completedAt    DateTime?
+  createdAt      DateTime             @default(now())
+
+  @@unique([provider, periodStart, periodEnd])
+  @@index([status, createdAt])
+}
+
+model PublishProof {
+  id              String             @id @default(cuid())
+  collaborationId String
+  deliverableId   String?
+  submittedById   String
+  socialAccountId String?
+  screenshotId    String?
+  postUrl         String
+  platform        SocialPlatform
+  status          PublishProofStatus @default(SUBMITTED)
+  metrics         Json?
+  providerPostId  String?
+  publishedAt     DateTime?
+  verifiedAt      DateTime?
+  retentionDueAt  DateTime?
+  lastCheckedAt   DateTime?
+  failureReason   String?
+  createdAt       DateTime           @default(now())
+  updatedAt       DateTime           @updatedAt
+
+  collaboration   Collaboration                @relation(fields: [collaborationId], references: [id], onDelete: Cascade)
+  deliverable     Deliverable?                 @relation(fields: [deliverableId], references: [id], onDelete: SetNull)
+  submittedBy     User                         @relation(fields: [submittedById], references: [id], onDelete: Restrict)
+  socialAccount   SocialAccount?               @relation(fields: [socialAccountId], references: [id], onDelete: SetNull)
+  screenshot      MediaAsset?                  @relation(fields: [screenshotId], references: [id], onDelete: SetNull)
+  metricSnapshots PublishProofMetricSnapshot[]
+
+  @@index([collaborationId, status])
+  @@index([retentionDueAt, status])
+  @@index([socialAccountId, createdAt])
+}
+
+model PublishProofMetricSnapshot {
+  id         String   @id @default(cuid())
+  proofId    String
+  reach      Int?
+  views      Int?
+  likes      Int?
+  comments   Int?
+  shares     Int?
+  engagement Int?
+  isLive     Boolean
+  source     String
+  capturedAt DateTime @default(now())
+
+  proof PublishProof @relation(fields: [proofId], references: [id], onDelete: Cascade)
+
+  @@index([proofId, capturedAt])
 }
 
 model OutboxEvent {
-  id          String    @id @default(cuid())
-  topic       String
-  aggregateId String
-  payload     Json
-  attempts    Int       @default(0)
-  processedAt DateTime?
-  createdAt   DateTime  @default(now())
+  id             String    @id @default(cuid())
+  topic          String
+  aggregateId    String
+  payload        Json
+  attempts       Int       @default(0)
+  processedAt    DateTime?
+  nextAttemptAt  DateTime  @default(now())
+  lockedAt       DateTime?
+  lastError      String?
+  deadLetteredAt DateTime?
+  createdAt      DateTime  @default(now())
 
-  @@index([processedAt, createdAt])
+  @@index([processedAt, deadLetteredAt, nextAttemptAt])
   @@index([topic, aggregateId])
 }
 
@@ -931,6 +1526,7 @@ model TrustCase {
   reason          String
   evidence        Json?
   resolution      String?
+  resolutionData  Json?
   resolvedAt      DateTime?
   createdAt       DateTime        @default(now())
   updatedAt       DateTime        @updatedAt
@@ -977,11 +1573,80 @@ model AdminAction {
   @@index([targetType, targetId, createdAt])
 }
 
+// Non-secret operational configuration. Secrets remain environment variables
+// and are deliberately not represented by this model or its admin API.
+model PlatformSetting {
+  id          String   @id @default(cuid())
+  key         String   @unique
+  value       Json
+  description String?
+  updatedById String?
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
+  updatedBy User? @relation("PlatformSettingUpdater", fields: [updatedById], references: [id], onDelete: SetNull)
+
+  @@index([updatedAt])
+}
+
+model FeatureFlag {
+  id                String     @id @default(cuid())
+  key               String     @unique
+  name              String
+  description       String?
+  enabled           Boolean    @default(true)
+  rolloutPercentage Int        @default(100)
+  allowedRoles      UserRole[] @default([])
+  updatedById       String?
+  createdAt         DateTime   @default(now())
+  updatedAt         DateTime   @updatedAt
+
+  updatedBy User? @relation("FeatureFlagUpdater", fields: [updatedById], references: [id], onDelete: SetNull)
+
+  @@index([enabled, updatedAt])
+}
+
+model JobLease {
+  name      String   @id
+  ownerId   String
+  expiresAt DateTime
+  updatedAt DateTime @updatedAt
+
+  @@index([expiresAt])
+}
+
+model JobRun {
+  id         String       @id @default(cuid())
+  jobName    String
+  ownerId    String
+  status     JobRunStatus @default(RUNNING)
+  attempt    Int          @default(1)
+  metrics    Json?
+  error      String?
+  startedAt  DateTime     @default(now())
+  finishedAt DateTime?
+
+  @@index([jobName, startedAt])
+  @@index([status, startedAt])
+}
+
+model AnalyticsDailyRollup {
+  id        String   @id @default(cuid())
+  date      DateTime @unique @db.Date
+  metrics   Json
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+}
+
 enum UserRole {
   VIEWER
   CREATOR
   BUSINESS
   ADMIN
+}
+
+enum AuthProvider {
+  GOOGLE
 }
 
 enum AccountStatus {
@@ -1003,6 +1668,14 @@ enum MediaPurpose {
   PORTFOLIO
   COLLABORATION
   DELIVERABLE
+  CONTENT
+  CAMPAIGN_BRIEF
+}
+
+enum CampaignAttachmentKind {
+  BRIEF
+  BRAND_GUIDELINE
+  REFERENCE
 }
 
 enum PortfolioStatus {
@@ -1025,6 +1698,22 @@ enum SocialPlatform {
   FACEBOOK
   X
   OTHER
+}
+
+enum SocialSyncStatus {
+  MANUAL
+  CONNECTED
+  SYNCING
+  HEALTHY
+  STALE
+  ERROR
+  REAUTH_REQUIRED
+  DISCONNECTED
+}
+
+enum SocialChannelType {
+  CREATOR
+  BUSINESS
 }
 
 enum MediaType {
@@ -1063,6 +1752,12 @@ enum OfferStatus {
   CANCELLED
 }
 
+enum WorkOfferSource {
+  DIRECT
+  PROPOSAL
+  INVITATION
+}
+
 enum CollaborationStatus {
   NEGOTIATION
   AGREEMENT_REVIEW
@@ -1070,8 +1765,85 @@ enum CollaborationStatus {
   PAYMENT_PENDING
   IN_PROGRESS
   IN_REVIEW
+  PUBLISHED
+  PROVEN
+  DISPUTED
+  SETTLEMENT_PENDING
   COMPLETED
   CANCELLED
+}
+
+enum CollaborationTaskStatus {
+  TODO
+  IN_PROGRESS
+  REVIEW
+  DONE
+}
+
+enum CollaborationTaskPriority {
+  LOW
+  MEDIUM
+  HIGH
+  URGENT
+}
+
+enum PublishProofStatus {
+  SUBMITTED
+  VERIFYING
+  VERIFIED
+  RETENTION_PENDING
+  RETENTION_PASSED
+  REJECTED
+  REMOVED
+}
+
+enum ShowcaseConsentDecision {
+  PENDING
+  APPROVED
+  DECLINED
+}
+
+enum LedgerAccountType {
+  PROVIDER_CLEARING
+  ESCROW_LIABILITY
+  CREATOR_PAYABLE
+  PLATFORM_REVENUE
+  REFUND_PAYABLE
+  USER_WALLET
+  BUSINESS_WALLET
+  CREATOR_PENDING
+  CREATOR_AVAILABLE
+  PLATFORM_PENDING
+}
+
+enum LedgerEntryType {
+  ESCROW_FUNDED
+  CREATOR_EARNED
+  COMMISSION_EARNED
+  PAYOUT_SENT
+  REFUND_ISSUED
+  DISPUTE_ADJUSTMENT
+  RECONCILIATION_ADJUSTMENT
+  TOP_UP
+  COLLABORATION_FUNDING
+  BARTER_PLATFORM_FEE
+  CREATOR_PENDING
+  CREATOR_RELEASE
+  PLATFORM_COMMISSION_PENDING
+  PLATFORM_COMMISSION_EARNED
+  PLATFORM_BARTER_FEE_PENDING
+  PLATFORM_BARTER_FEE_EARNED
+  REFUND
+  PAYOUT
+  ADJUSTMENT
+}
+
+enum ReconciliationStatus {
+  PENDING
+  RUNNING
+  MATCHED
+  MISMATCHED
+  FAILED
 }
 
 enum ContractStatus {
@@ -1095,6 +1867,12 @@ enum MessageStatus {
   READ
 }
 
+enum MessageRequestStatus {
+  PENDING
+  ACCEPTED
+  DECLINED
+}
+
 enum NotificationType {
   WORK_OFFER
   PROPOSAL
@@ -1102,6 +1880,12 @@ enum NotificationType {
   PAYMENT
   DELIVERABLE
   MESSAGE
+  FOLLOW
+  CONTENT_LIKE
+  CONTENT_MENTION
+  CONTENT_PUBLISHED
+  MODERATION
+  DIRECT_MESSAGE
   SYSTEM
 }
 
@@ -1130,6 +1914,43 @@ enum ShowcaseReactionType {
   LIKE
 }
 
+enum ContentAuthorType {
+  CREATOR
+  BUSINESS
+}
+
+enum ContentPostType {
+  ORIGINAL
+  PORTFOLIO
+  CAMPAIGN
+  COLLABORATION
+  BRAND_STORY
+  STORY
+}
+
+enum ContentVisibility {
+  PUBLIC
+  FOLLOWERS
+}
+
+enum ContentPostStatus {
+  DRAFT
+  PUBLISHED
+  ARCHIVED
+  REMOVED
+}
+
+enum ContentReactionType {
+  LIKE
+}
+
+enum JobRunStatus {
+  RUNNING
+  SUCCEEDED
+  FAILED
+  SKIPPED
+}
+
 enum InvitationStatus {
   PENDING
   ACCEPTED
@@ -1139,18 +1960,49 @@ enum InvitationStatus {
 
 enum PaymentType {
   FUNDING
+  BARTER_PLATFORM_FEE
   MILESTONE_RELEASE
   PAYOUT
   REFUND
   COMMISSION
 }
 
+enum CollaborationPaymentType {
+  PAID
+  BARTER
+  HYBRID
+}
+
+enum WalletTopUpStatus {
+  PENDING
+  COMPLETED
+  FAILED
+  CANCELLED
+}
+
+enum PlatformRevenueSource {
+  PAID_COMMISSION
+  BARTER_SERVICE_FEE
+  HYBRID_COMMISSION
+  OTHER
+}
+
+enum PlatformRevenueStatus {
+  PENDING
+  EARNED
+  REFUNDED
+}
+
 enum PaymentStatus {
   PENDING
+  FUNDING_REQUIRED
   PROCESSING
   FUNDED
+  IN_PROGRESS
+  READY_FOR_RELEASE
   RELEASED
   PAID
+  PARTIALLY_REFUNDED
   FAILED
   REFUNDED
   CANCELLED

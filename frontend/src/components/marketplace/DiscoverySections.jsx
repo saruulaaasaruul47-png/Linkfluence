@@ -79,11 +79,13 @@ export function HeroSearch({ onSearch, suggestions = [], trending = [], image })
           transition={{ duration: .55, delay: .08 }}
           className="relative min-h-[24rem] overflow-hidden border-t border-white/10 bg-[#111] lg:min-h-full lg:border-l lg:border-t-0"
         >
-          <img
+          {image ? <img
             src={image}
-            alt="Featured creator"
+            alt="Featured registered creator"
+            loading="lazy"
+            decoding="async"
             className="absolute inset-0 size-full object-cover saturate-[.72] brightness-[.48]"
-          />
+          /> : <div className="absolute inset-0 bg-[radial-gradient(circle_at_35%_35%,rgba(255,118,189,.18),transparent_34%),radial-gradient(circle_at_70%_65%,rgba(184,245,209,.13),transparent_30%)]" />}
           <div className="absolute inset-0 bg-gradient-to-r from-black/30 via-transparent to-black/15" />
         </motion.div>
       </div>

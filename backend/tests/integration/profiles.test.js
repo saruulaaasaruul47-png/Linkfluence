@@ -93,6 +93,11 @@ describe('Sprint 2 profile APIs', () => {
       .attach('avatar', Buffer.from('not an image'), { filename: 'avatar.txt', contentType: 'text/plain' });
     assert.equal(invalid.status, 400);
     assert.equal(invalid.body.error.code, 'INVALID_AVATAR_FILE');
+
+    const spoofed = await authenticated().patch('/api/v1/users/me/avatar')
+      .attach('avatar', Buffer.from('not really a png'), { filename: 'spoofed.png', contentType: 'image/png' });
+    assert.equal(spoofed.status, 400);
+    assert.equal(spoofed.body.error.code, 'INVALID_AVATAR_FILE');
   });
 
   test('creates, reads, updates and deletes one creator profile with role sync', async () => {

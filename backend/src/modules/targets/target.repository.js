@@ -71,4 +71,18 @@ export const targetRepository = {
       },
     });
   },
+
+  findContent(identifier, db = prisma) {
+    return db.contentPost.findFirst({
+      where: { id: identifier, status: 'PUBLISHED', deletedAt: null },
+      select: {
+        id: true,
+        title: true,
+        creatorId: true,
+        businessId: true,
+        creator: { select: { userId: true } },
+        business: { select: { userId: true } },
+      },
+    });
+  },
 };

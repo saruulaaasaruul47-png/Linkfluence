@@ -1,7 +1,8 @@
-import { useState } from 'react'
+import { useEffect, useRef, useState } from 'react'
 import { ArrowLeft, CheckCircle2, KeyRound, Mail } from 'lucide-react'
 import { Link, useNavigate } from 'react-router-dom'
 import { authApi } from '../../api/auth.api'
+import { parseAuthError } from '../../api/authError'
 import { AuthIntro } from '../../components/auth/AuthIntro'
 import { AuthLayout } from '../../components/auth/AuthLayout'
 import { Button, Input } from '../../components/ui'
@@ -22,6 +23,10 @@ export default function ForgotPasswordPage() {
   const [error, setError] = useState('')
   const [loading, setLoading] = useState(false)
   const navigate = useNavigate()
+  const redirectTimer = useRef(null)
+  useEffect(() => () => window.clearTimeout(redirectTimer.current), [])
+
+  const errorMessage = (error) => parseAuthError(error).message
 
   const requestCode = async (event) => {
     event?.preventDefault()
@@ -35,7 +40,7 @@ export default function ForgotPasswordPage() {
       await authApi.forgotPassword({ email: email.trim().toLowerCase() })
       setStep('otp')
     } catch (requestError) {
-      setError(requestError.message)
+      setError(errorMessage(requestError))
     } finally {
       setLoading(false)
     }
@@ -54,7 +59,7 @@ export default function ForgotPasswordPage() {
       setResetToken(result.resetToken)
       setStep('password')
     } catch (requestError) {
-      setError(requestError.message)
+      setError(errorMessage(requestError))
     } finally {
       setLoading(false)
     }
@@ -79,9 +84,10 @@ export default function ForgotPasswordPage() {
     try {
       await authApi.resetPassword({ resetToken, newPassword })
       setStep('done')
-      window.setTimeout(() => navigate('/login', { replace: true }), 1200)
+      window.clearTimeout(redirectTimer.current)
+      redirectTimer.current = window.setTimeout(() => navigate('/login', { replace: true }), 1200)
     } catch (requestError) {
-      setError(requestError.message)
+      setError(errorMessage(requestError))
     } finally {
       setLoading(false)
     }

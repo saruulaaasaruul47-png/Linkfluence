@@ -213,6 +213,23 @@ body:has(.landing-page) {
   transform-origin: left;
 }
 
+.landing-account-button {
+  display: grid;
+  place-items: center;
+  width: 2.6rem;
+  height: 2.6rem;
+  border-radius: 50%;
+  border: 1px solid var(--line);
+  color: var(--soft);
+  transition: border-color 0.25s ease, color 0.25s ease, background 0.25s ease;
+}
+
+.landing-account-button:hover {
+  border-color: var(--pink);
+  color: #f7f7f2;
+  background: rgba(255, 118, 189, 0.08);
+}
+
 .contact-pill {
   display: flex;
   align-items: center;
@@ -282,7 +299,7 @@ body:has(.landing-page) {
   margin-right: -0.03em;
 }
 
-.pink {
+.landing-page .pink {
   color: var(--pink);
 }
 
@@ -459,6 +476,13 @@ body:has(.landing-page) {
   border: 1px solid rgba(255, 255, 255, 0.11);
 }
 
+.work-card > a {
+  position: relative;
+  display: block;
+  width: 100%;
+  height: 100%;
+}
+
 .work-card img {
   width: 100%;
   height: 100%;
@@ -568,6 +592,28 @@ body:has(.landing-page) {
   min-width: 0;
 }
 
+.landing-data-state,
+.creator-stack-empty {
+  display: grid;
+  place-items: center;
+  min-height: 10rem;
+  border: 1px dashed rgba(255, 255, 255, 0.16);
+  color: rgba(255, 255, 255, 0.48);
+  font-size: 0.78rem;
+  text-align: center;
+  padding: 1.5rem;
+}
+
+.landing-data-state {
+  margin-top: 1.5rem;
+}
+
+.creator-stack-empty {
+  width: min(440px, 72vw);
+  min-height: 32rem;
+  border-radius: 1.7rem;
+}
+
 .creator-stack-shell {
   position: relative;
   min-height: 690px;
@@ -608,6 +654,10 @@ body:has(.landing-page) {
   background: #2b2b2b;
   transform-origin: 50% 100%;
   box-shadow: 0 44px 100px rgba(0, 0, 0, 0.42);
+}
+
+.creator-card.is-front {
+  cursor: pointer;
 }
 
 .creator-card img {
@@ -675,21 +725,27 @@ body:has(.landing-page) {
 }
 
 .landing-page .creator-profile-button {
-  width: 58%;
+  width: auto;
   border: 0;
   border-radius: 999px;
-  padding: 0.72rem 1rem;
+  padding: 0.8rem 1.5rem;
   background: #f5f5f2;
   color: #17131c;
-  font-size: 0.78rem;
+  font-size: 0.76rem;
   font-weight: 700;
+  letter-spacing: 0.01em;
   display: inline-flex;
   align-items: center;
   justify-content: center;
   gap: 0.5rem;
   opacity: 1;
   visibility: visible;
-  transition: transform 0.22s ease, background 0.22s ease, color 0.22s ease;
+  box-shadow: 0 12px 28px rgba(0, 0, 0, 0.3);
+  transition: transform 0.22s ease, background 0.22s ease, box-shadow 0.22s ease, gap 0.22s ease;
+}
+
+.landing-page .creator-profile-button svg {
+  transition: transform 0.22s ease;
 }
 
 .landing-page .creator-profile-button:hover,
@@ -697,6 +753,13 @@ body:has(.landing-page) {
   transform: translateY(-3px);
   background: #fff;
   color: #17131c;
+  gap: 0.7rem;
+  box-shadow: 0 16px 34px rgba(0, 0, 0, 0.36);
+}
+
+.landing-page .creator-profile-button:hover svg,
+.landing-page .creator-profile-button:focus-visible svg {
+  transform: translate(2px, -2px);
 }
 
 .creator-counter {
@@ -707,38 +770,6 @@ body:has(.landing-page) {
   font-size: 0.62rem;
   letter-spacing: 0.14em;
   color: rgba(255, 255, 255, 0.55);
-}
-
-.stack-arrow {
-  position: absolute;
-  top: 50%;
-  width: 3rem;
-  height: 3rem;
-  display: grid;
-  place-items: center;
-  border-radius: 50%;
-  border: 1px solid rgba(255, 255, 255, 0.48);
-  background: rgba(13, 13, 13, 0.32);
-  color: white;
-  backdrop-filter: blur(16px);
-  box-shadow: inset 0 1px 1px rgba(255, 255, 255, 0.25);
-  z-index: 25;
-  transform: translateY(-50%);
-  transition: transform 0.25s ease, background 0.25s ease, border-color 0.25s ease;
-}
-
-.stack-arrow:hover {
-  transform: translateY(-50%) scale(1.08);
-  border-color: rgba(255, 255, 255, 0.8);
-  background: rgba(255, 118, 189, 0.78);
-}
-
-.stack-arrow-left {
-  left: 0.85rem;
-}
-
-.stack-arrow-right {
-  right: 0.85rem;
 }
 
 .services-section {
@@ -1073,19 +1104,6 @@ body:has(.landing-page) {
     font-size: 2.2rem;
   }
 
-  .stack-arrow {
-    width: 2.75rem;
-    height: 2.75rem;
-  }
-
-  .stack-arrow-left {
-    left: 0.65rem;
-  }
-
-  .stack-arrow-right {
-    right: 0.65rem;
-  }
-
   .services-section {
     padding-top: 100px;
     padding-bottom: 110px;
@@ -1118,6 +1136,16 @@ body:has(.landing-page) {
 
   .footer-bottom > div {
     justify-self: end;
+  }
+}
+
+@media (max-width: 520px) {
+  .landing-actions {
+    gap: 0.45rem;
+  }
+
+  .landing-sign-in {
+    display: none;
   }
 }
 

@@ -13,7 +13,6 @@ export const reviseDeliverableSchema = envelope(submission, z.object({ id, deliv
 export const reviewDeliverableSchema = envelope(z.object({
   decision: z.enum(['APPROVED', 'REVISION_REQUESTED']),
   note: z.string().trim().max(2000).optional(),
-  autoConfirmRelease: z.boolean().default(false),
 }).strict().superRefine((value, ctx) => {
   if (value.decision === 'REVISION_REQUESTED' && !value.note) ctx.addIssue({ code: 'custom', path: ['note'], message: 'A revision note is required.' });
 }), z.object({ id, deliverableId: id }));

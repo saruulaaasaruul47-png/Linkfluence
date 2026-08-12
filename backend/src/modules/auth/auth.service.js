@@ -1,6 +1,7 @@
 import { env } from '../../config/env.js';
 import {
   AUTH_ERROR,
+  ACTIVE_STATUS,
   DEFAULT_USER_ROLE,
   PASSWORD_RESET_PURPOSE,
   PENDING_STATUS,
@@ -16,6 +17,7 @@ import { generateOtp, otpExpiresAt } from '../../shared/utils/otp.js';
 import { comparePassword, hashPassword } from '../../shared/utils/password.js';
 import { hashToken, safeHashEqual } from '../../shared/utils/tokenHash.js';
 import { sendPasswordResetEmail, sendVerificationEmail } from './auth.email.js';
+import { verifyGoogleCredential } from './auth.google.js';
 import { toSafeUser } from './auth.mapper.js';
 import { assertActiveUser } from './auth.policy.js';
 import { authRepository } from './auth.repository.js';
@@ -181,6 +183,61 @@ export const authService = {
       user: toSafeUser(updatedUser),
       accessToken: session.accessToken,
       refreshToken: session.refreshToken,
+      persistent: session.persistent,
+    };
+  },
+
+  async googleLogin(payload, context) {
+    const profile = await verifyGoogleCredential(payload.credential);
+    const identityData = {
+      provider: 'GOOGLE',
+      subject: profile.subject,
+      email: profile.email,
+    };
+
+    const identity = await authRepository.findAuthIdentity('GOOGLE', profile.subject);
+    let user = identity?.user || null;
+
+    if (!user) {
+      user = await authRepository.findUserByEmail(profile.email);
+      if (user) {
+        if (user.deletedAt || user.status === 'SUSPENDED' || user.status === 'BANNED') {
+          assertActiveUser(user);
+        }
+        user = await authRepository.linkGoogleIdentity(user.id, identityData, {
+          status: ACTIVE_STATUS,
+          emailVerifiedAt: user.emailVerifiedAt || new Date(),
+          lastSeenAt: new Date(),
+          avatarUrl: user.avatarUrl || profile.avatarUrl,
+        });
+      } else {
+        user = await authRepository.createGoogleUserWithIdentity(
+          {
+            email: profile.email,
+            displayName: profile.displayName,
+            avatarUrl: profile.avatarUrl,
+            passwordHash: null,
+            roles: [DEFAULT_USER_ROLE],
+            status: ACTIVE_STATUS,
+            emailVerifiedAt: new Date(),
+            lastSeenAt: new Date(),
+          },
+          identityData,
+        );
+      }
+    } else {
+      assertActiveUser(user);
+      user = await authRepository.updateLastSeen(user.id, new Date());
+    }
+
+    assertActiveUser(user);
+    const session = createSessionTokens(user, context);
+    await authRepository.createAuthToken(session.tokenData);
+    return {
+      user: toSafeUser(user),
+      accessToken: session.accessToken,
+      refreshToken: session.refreshToken,
+      persistent: session.persistent,
     };
   },
 
@@ -208,7 +265,10 @@ export const authService = {
       throw new AppError('Invalid or expired refresh token.', 401, AUTH_ERROR.INVALID_REFRESH);
     }
     assertActiveUser(record.user);
-    const session = createSessionTokens(record.user, context, record.familyId);
+    const session = createSessionTokens(record.user, {
+      ...context,
+      persistent: payload.persistent !== false,
+    }, record.familyId);
     const rotated = await authRepository.rotateAuthToken(record.id, session.tokenData);
     if (!rotated) {
       await authRepository.invalidateCompromisedFamily(record.userId, record.familyId);
@@ -218,7 +278,11 @@ export const authService = {
         AUTH_ERROR.REFRESH_REUSE,
       );
     }
-    return { accessToken: session.accessToken, refreshToken: session.refreshToken };
+    return {
+      accessToken: session.accessToken,
+      refreshToken: session.refreshToken,
+      persistent: session.persistent,
+    };
   },
 
   async logout(refreshToken) {

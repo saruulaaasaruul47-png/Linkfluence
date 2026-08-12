@@ -10,6 +10,18 @@ export const campaignInclude = {
       logoUrl: true,
       coverUrl: true,
       verificationStatus: true,
+      user: {
+        select: {
+          status: true,
+          deletedAt: true,
+        },
+      },
+    },
+  },
+  attachments: {
+    orderBy: { createdAt: 'asc' },
+    select: {
+      id: true, name: true, url: true, mimeType: true, sizeBytes: true, kind: true, createdAt: true,
     },
   },
   _count: {
@@ -22,6 +34,7 @@ export const campaignInclude = {
 };
 
 export const campaignRepository = {
+  transaction(callback) { return prisma.$transaction(callback); },
   findBusinessByUserId(userId, db = prisma) {
     return db.businessProfile.findUnique({
       where: { userId },
@@ -44,6 +57,12 @@ export const campaignRepository = {
     const where = {
       status: 'OPEN',
       isPublic: true,
+      business: {
+        user: {
+          status: 'ACTIVE',
+          deletedAt: null,
+        },
+      },
       OR: [
         { applicationDeadline: null },
         { applicationDeadline: { gt: new Date() } },
@@ -122,5 +141,18 @@ export const campaignRepository = {
 
   remove(id) {
     return prisma.campaign.delete({ where: { id } });
+  },
+
+  findOwnedMedia(id, ownerId, db = prisma) {
+    return db.mediaAsset.findFirst({ where: { id, ownerId, deletedAt: null } });
+  },
+
+  createAttachment(campaignId, uploadedById, data, db = prisma) {
+    return db.campaignAttachment.create({ data: { campaignId, uploadedById, ...data } });
+  },
+
+  async removeAttachment(id, campaignId, db = prisma) {
+    const result = await db.campaignAttachment.deleteMany({ where: { id, campaignId } });
+    return result.count === 1;
   },
 };

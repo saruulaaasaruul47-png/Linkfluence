@@ -1,19 +1,19 @@
 import { useMemo, useState } from 'react'
-import { ArrowLeft, ArrowRight, CalendarDays, Check, ChevronRight, FilePlus2, MessageSquare, Send, Sparkles, Users } from 'lucide-react'
+import { ArrowLeft, ArrowRight, CalendarDays, Check, ChevronRight, FilePlus2, MessageSquare, Send, Sparkles, Trash2, Users } from 'lucide-react'
 import { useNavigate, useParams } from 'react-router-dom'
 import { DashboardHeader, DashboardPage, DashboardPanel, Progress } from '../../components/dashboard/DashboardUI'
-import { Badge, Button, Checkbox, Dialog, Input, Select, SpotlightCard, Textarea, useToast } from '../../components/ui'
+import { Badge, Button, Checkbox, Dialog, EmptyState, Input, Select, SpotlightCard, Textarea, useToast } from '../../components/ui'
 import { useCollaboration } from '../../context/collaboration-context'
-import { dashboardCampaigns } from '../../data/dashboard'
-import { campaigns as marketplaceCampaigns } from '../../data/marketplace'
 import { useDashboardData } from '../../context/dashboard-data-context'
+import { campaignApi } from '../../api/campaign.api'
+import { mediaApi } from '../../api/media.api'
 
 const campaignFilters = ['All', 'Active', 'Review', 'Draft', 'Completed']
 const wizardSteps = ['Basics', 'Audience', 'Deliverables', 'Budget & review']
+const campaignFallbackImage = 'https://images.unsplash.com/photo-1518005020951-eccb494ad742?auto=format&fit=crop&w=900&q=85'
 
-function campaignImage(item) {
-  return marketplaceCampaigns.find((campaign) => campaign.id === item.id || campaign.title === item.title)?.image
-    || 'https://images.unsplash.com/photo-1518005020951-eccb494ad742?auto=format&fit=crop&w=900&q=85'
+function campaignImage() {
+  return campaignFallbackImage
 }
 
 function campaignTone(status) {
@@ -56,52 +56,52 @@ export function CampaignListPage({ role }) {
         ))}
       </div>
       {items.length ? (
-        <div className="campaign-card-grid grid gap-5 md:grid-cols-2 2xl:grid-cols-3">
+        <div className="campaign-card-grid grid gap-3">
           {items.map((item, index) => (
             <SpotlightCard
               as="button"
               type="button"
               key={item.id}
               onClick={() => navigate(`/${role}/campaigns/${item.id}`)}
-              className="group relative min-h-[24rem] min-w-0 overflow-hidden rounded-[1.65rem] border border-white/15 bg-[#171717] text-left shadow-[0_20px_70px_rgba(0,0,0,.3)] transition duration-500 hover:-translate-y-1 hover:border-white/35"
+              className="group relative min-h-[20.5rem] min-w-0 overflow-hidden rounded-[1.3rem] border border-white/15 bg-[#171717] text-left shadow-[0_16px_48px_rgba(0,0,0,.28)] transition duration-500 hover:-translate-y-1 hover:border-white/35"
             >
               <img src={campaignImage(item)} alt="" loading="lazy" decoding="async" className="absolute inset-0 size-full object-cover opacity-72 transition duration-700 group-hover:scale-[1.045] group-hover:opacity-88" />
               <div className="absolute inset-0 bg-gradient-to-b from-black/28 via-black/12 to-black/88" />
               <div className="absolute inset-x-0 bottom-0 h-2/5 bg-gradient-to-t from-pink/28 via-pink/8 to-transparent mix-blend-screen" />
-              <div className="absolute inset-x-4 top-4 flex items-start justify-between gap-3">
-                <span className="grid size-10 shrink-0 place-items-center rounded-full border border-white/30 bg-black/25 text-[10px] font-bold tracking-[.1em] text-white/75 backdrop-blur-xl">
+              <div className="absolute inset-x-3 top-3 flex items-start justify-between gap-2">
+                <span className="grid size-8 shrink-0 place-items-center rounded-full border border-white/30 bg-black/25 text-[9px] font-bold tracking-[.1em] text-white/75 backdrop-blur-xl">
                   {String(index + 1).padStart(2, '0')}
                 </span>
                 <Badge variant={campaignTone(item.status)} className="shadow-[0_10px_30px_rgba(0,0,0,.25)]">{item.status}</Badge>
               </div>
-              <div className="absolute inset-x-4 bottom-4 rounded-[1.35rem] border border-white/20 bg-black/45 p-4 backdrop-blur-2xl">
+              <div className="absolute inset-x-3 bottom-3 rounded-[1.05rem] border border-white/20 bg-black/45 p-3 backdrop-blur-2xl">
                 <div className="flex items-start justify-between gap-3">
                   <div className="min-w-0">
-                    <p className="flex items-center gap-1.5 text-[10px] font-bold uppercase tracking-[.14em] text-white/50">
-                      <Sparkles size={12} />
+                    <p className="flex items-center gap-1.5 text-[8px] font-bold uppercase tracking-[.12em] text-white/50">
+                      <Sparkles size={10} />
                       {role === 'creator' ? item.business : item.creator}
                     </p>
-                    <h2 className="mt-1 line-clamp-2 text-[clamp(1.6rem,2.4vw,2.3rem)] font-black leading-[.92] tracking-[-.055em] text-white">{item.title}</h2>
+                    <h2 className="mt-1 line-clamp-2 text-[clamp(1.25rem,1.55vw,1.65rem)] font-black leading-[.95] tracking-[-.045em] text-white">{item.title}</h2>
                   </div>
-                  <span className="grid size-10 shrink-0 place-items-center rounded-full bg-white text-black transition group-hover:bg-pink">
-                    <ArrowRight size={16} />
+                  <span className="grid size-8 shrink-0 place-items-center rounded-full bg-white text-black transition group-hover:bg-pink">
+                    <ArrowRight size={13} />
                   </span>
                 </div>
-                <div className="mt-4 grid grid-cols-3 gap-2">
-                  <span className="min-w-0 rounded-2xl border border-white/10 bg-white/[.08] p-3">
-                    <i className="block truncate text-[10px] not-italic text-white/38">Budget</i>
-                    <b className="mt-1 block truncate text-sm text-white">{item.budget}</b>
+                <div className="mt-3 grid grid-cols-3 gap-1.5">
+                  <span className="min-w-0 rounded-xl border border-white/10 bg-white/[.08] p-2">
+                    <i className="block truncate text-[8px] not-italic text-white/38">Budget</i>
+                    <b className="mt-0.5 block truncate text-[11px] text-white">{item.budget}</b>
                   </span>
-                  <span className="min-w-0 rounded-2xl border border-white/10 bg-white/[.08] p-3">
-                    <i className="block truncate text-[10px] not-italic text-white/38">Deadline</i>
-                    <b className="mt-1 block truncate text-sm text-white">{item.deadline}</b>
+                  <span className="min-w-0 rounded-xl border border-white/10 bg-white/[.08] p-2">
+                    <i className="block truncate text-[8px] not-italic text-white/38">Deadline</i>
+                    <b className="mt-0.5 block truncate text-[11px] text-white">{item.deadline}</b>
                   </span>
-                  <span className="min-w-0 rounded-2xl border border-white/10 bg-white/[.08] p-3">
-                    <i className="block truncate text-[10px] not-italic text-white/38">Work</i>
-                    <b className="mt-1 block truncate text-sm text-white">{item.deliverables}</b>
+                  <span className="min-w-0 rounded-xl border border-white/10 bg-white/[.08] p-2">
+                    <i className="block truncate text-[8px] not-italic text-white/38">Work</i>
+                    <b className="mt-0.5 block truncate text-[11px] text-white">{item.deliverables}</b>
                   </span>
                 </div>
-                <div className="mt-4">
+                <div className="mt-3">
                   <div className="mb-1.5 flex justify-between text-[10px] font-semibold text-white/48"><span>Campaign progress</span><span>{item.progress}%</span></div>
                   <div className="h-1.5 overflow-hidden rounded-full bg-white/15">
                     <div className="h-full rounded-full bg-pink shadow-[0_0_18px_rgba(255,118,189,.35)]" style={{ width: `${item.progress}%` }} />
@@ -149,17 +149,17 @@ export function ProposalDialog({ open, onClose, campaign }) {
     setLoading(true)
     try {
       await submitProposal(campaign, data)
-      toast(existing ? 'Proposal updated.' : 'Proposal submitted.', { type: 'success' })
+      toast(existing ? 'Work request updated.' : 'Work request sent.', { type: 'success' })
       onClose()
     } catch (error) {
-      toast(error.response?.data?.message || error.message || 'Proposal could not be saved.', { type: 'error' })
+      toast(error.response?.data?.error?.message || error.response?.data?.message || error.message || 'Work request could not be saved.', { type: 'error' })
     } finally {
       setLoading(false)
     }
   }
 
   return (
-    <Dialog dark open={open} onClose={onClose} title={`Submit proposal · ${campaign.title}`} description="Share a concise approach and commercial terms.">
+    <Dialog dark open={open} onClose={onClose} title={`${existing ? 'Update' : 'Send'} work request · ${campaign.title}`} description="Share a concise approach and commercial terms with this campaign.">
       <form onSubmit={submit} className="space-y-4">
         <Textarea label="Creative approach" value={data.approach} onChange={set('approach')} error={errors.approach} placeholder="How would you make this campaign useful and distinctive for your audience?" />
         <div className="grid gap-4 sm:grid-cols-2">
@@ -169,7 +169,7 @@ export function ProposalDialog({ open, onClose, campaign }) {
         <Textarea label="Deliverable notes" value={data.deliverables} onChange={set('deliverables')} placeholder="Clarify inclusions, revision rounds or production needs." />
         <div className="flex justify-end gap-2 pt-2">
           <Button variant="ghost" onClick={onClose}>Cancel</Button>
-          <Button type="submit" variant="pink" loading={loading}><Send size={15} />Submit proposal</Button>
+          <Button type="submit" variant="pink" loading={loading}><Send size={15} />{existing ? 'Update request' : 'Send request'}</Button>
         </div>
       </form>
     </Dialog>
@@ -183,12 +183,13 @@ export function CampaignDetailPage({ role }) {
   const { workspaces } = useCollaboration()
   const { campaigns, creatorProposals, updateCampaign, deleteCampaign } = useDashboardData()
   const { toast } = useToast()
-  const item = campaigns.find((campaign) => campaign.id === id) || campaigns[0] || dashboardCampaigns[0]
+  const item = campaigns.find((campaign) => campaign.id === id)
+  if (!item) return <DashboardPage><EmptyState title="Campaign not found" description="This campaign may have been removed or is no longer available." action="Back to campaigns" onAction={() => navigate(`/${role}/campaigns`)} /></DashboardPage>
   const existingProposal = creatorProposals.find((proposal) => proposal.campaignId === item.id)
   const workspace = workspaces.find((entry) => entry.campaign.id === item.id || entry.campaign.title === item.title)
   const primary = role === 'creator'
-    ? <Button variant="pink" onClick={() => setProposalOpen(true)}><Send size={15} />{existingProposal ? 'Edit proposal' : 'Submit proposal'}</Button>
-    : <Button variant="pink" onClick={() => navigate('/business/proposals')}><MessageSquare size={15} />Review proposals</Button>
+    ? <Button variant="pink" onClick={() => setProposalOpen(true)}><Send size={15} />{existingProposal ? 'Edit request' : 'Send work request'}</Button>
+    : <Button variant="pink" onClick={() => navigate('/business/proposals')}><MessageSquare size={15} />Review requests</Button>
 
   return (
     <DashboardPage>
@@ -263,13 +264,21 @@ export function CampaignDetailPage({ role }) {
 
 export function CreateCampaignPage() {
   const [step, setStep] = useState(0)
-  const [data, setData] = useState({ title: '', goal: '', niche: '', summary: '', audience: '', location: '', platform: '', audienceSize: '', deliverables: '', usage: '', rounds: '', guardrails: '', budget: '', deadline: '', open: true })
+  const [data, setData] = useState({ title: '', goal: '', niche: '', summary: '', audience: '', location: '', platform: '', audienceSize: '', deliverables: '', usage: '', rounds: '', guardrails: '', budget: '', deadline: '', open: true, productSupportProvided: false, productSupportDescription: '', productSupportValue: '', productSupportCurrency: 'MNT' })
   const [errors, setErrors] = useState({})
   const [saving, setSaving] = useState(false)
+  const [briefFiles, setBriefFiles] = useState([])
+  const [briefKind, setBriefKind] = useState('BRIEF')
   const navigate = useNavigate()
   const { toast } = useToast()
   const { addCampaign } = useDashboardData()
   const set = (name) => (event) => setData((value) => ({ ...value, [name]: event?.target?.type === 'checkbox' ? event.target.checked : event.target.value }))
+  const pickBriefFiles = (event) => {
+    const files = Array.from(event.target.files || [])
+    setBriefFiles((current) => [...current, ...files.map((file) => ({ id: `${Date.now()}-${Math.random()}`, file, kind: briefKind }))])
+    event.target.value = ''
+  }
+  const removeBriefFile = (id) => setBriefFiles((current) => current.filter((entry) => entry.id !== id))
 
   const validate = () => {
     const next = {}
@@ -297,11 +306,26 @@ export function CreateCampaignPage() {
     if (!validate()) return
     setSaving(true)
     try {
-      await addCampaign(data)
+      const campaign = await addCampaign(data)
+      for (const entry of briefFiles) {
+        try {
+          const uploaded = await mediaApi.upload(entry.file, 'CAMPAIGN_BRIEF')
+          await campaignApi.addAttachment(campaign.id, {
+            mediaAssetId: uploaded.asset.id,
+            name: entry.file.name,
+            url: uploaded.asset.url,
+            mimeType: uploaded.asset.mimeType,
+            sizeBytes: uploaded.asset.sizeBytes,
+            kind: entry.kind,
+          })
+        } catch {
+          toast(`"${entry.file.name}" could not be attached.`, { type: 'error' })
+        }
+      }
       toast('Campaign draft created.', { type: 'success' })
       navigate('/business/campaigns')
     } catch (error) {
-      toast(error.response?.data?.message || error.message || 'Campaign could not be created.', { type: 'error' })
+      toast(error.response?.data?.error?.message || error.response?.data?.message || error.message || 'Campaign could not be created.', { type: 'error' })
     } finally {
       setSaving(false)
     }
@@ -342,12 +366,35 @@ export function CreateCampaignPage() {
               <Input label="Usage rights" value={data.usage} onChange={set('usage')} placeholder="Organic social · 3 months" />
               <Input label="Approval rounds" value={data.rounds} onChange={set('rounds')} placeholder="2 rounds" />
               <Textarea className="sm:col-span-2" label="Creative guardrails" value={data.guardrails} onChange={set('guardrails')} placeholder="Must-haves, avoidances and required disclosures." />
+              <div className="sm:col-span-2 rounded-2xl border border-white/10 p-4">
+                <Checkbox label="Product or sample support provided" description="Turn on if the creator receives a free product, sample or service to feature." checked={data.productSupportProvided} onChange={set('productSupportProvided')} />
+                {data.productSupportProvided && <div className="mt-4 grid gap-4 sm:grid-cols-2">
+                  <Textarea className="sm:col-span-2" label="What will be provided" value={data.productSupportDescription} onChange={set('productSupportDescription')} placeholder="e.g. 1 hero product + shipping" />
+                  <Input label="Estimated value" value={data.productSupportValue} onChange={set('productSupportValue')} placeholder="150000" />
+                  <Input label="Currency" value={data.productSupportCurrency} onChange={set('productSupportCurrency')} placeholder="MNT" />
+                </div>}
+              </div>
+              <div className="sm:col-span-2 rounded-2xl border border-white/10 p-4">
+                <p className="mb-3 text-xs text-white/50">Brief & brand guideline files</p>
+                <div className="flex flex-wrap items-center gap-3">
+                  <Select className="w-44" label="" aria-label="File type" value={briefKind} onChange={(event) => setBriefKind(event.target.value)} options={[{ label: 'Brief', value: 'BRIEF' }, { label: 'Brand guideline', value: 'BRAND_GUIDELINE' }, { label: 'Reference', value: 'REFERENCE' }]} />
+                  <input type="file" multiple accept="image/*,.pdf" onChange={pickBriefFiles} className="block text-xs text-white/60 file:mr-3 file:rounded-lg file:border-0 file:bg-white/10 file:px-3 file:py-2 file:text-xs file:text-white" />
+                </div>
+                {briefFiles.length > 0 && <ul className="mt-3 space-y-2">
+                  {briefFiles.map((entry) => (
+                    <li key={entry.id} className="flex items-center justify-between gap-2 rounded-lg bg-white/[.04] px-3 py-2 text-xs">
+                      <span className="min-w-0 truncate">{entry.file.name}<span className="ml-2 text-white/30">{entry.kind.replaceAll('_', ' ').toLowerCase()}</span></span>
+                      <button type="button" onClick={() => removeBriefFile(entry.id)} aria-label={`Remove ${entry.file.name}`}><Trash2 size={13} className="text-white/40 hover:text-white" /></button>
+                    </li>
+                  ))}
+                </ul>}
+              </div>
             </>}
             {step === 3 && <>
               <Input label="Budget range" value={data.budget} onChange={set('budget')} placeholder="MNT 10M-15M" error={errors.budget} />
               <Input type="date" label="Application deadline" value={data.deadline} onChange={set('deadline')} error={errors.deadline} />
               <div className="sm:col-span-2 rounded-2xl border border-white/10 p-4">
-                <Checkbox label="Open campaign" description="Verified creators can submit proposals. Turn off for invite-only mode." checked={data.open} onChange={set('open')} />
+                <Checkbox label="Open campaign" description="Verified creators can send work requests. Turn off for invite-only mode." checked={data.open} onChange={set('open')} />
               </div>
               <div className="sm:col-span-2 rounded-2xl bg-mint-soft p-5 text-black">
                 <p className="eyebrow opacity-45">Draft summary</p>

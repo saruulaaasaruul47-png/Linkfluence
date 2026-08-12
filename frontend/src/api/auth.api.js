@@ -4,6 +4,25 @@ function responseData(response) {
   return response.data?.data ?? null
 }
 
+const delay = (milliseconds) => new Promise((resolve) => setTimeout(resolve, milliseconds))
+
+async function waitForApi() {
+  let lastError
+  for (const waitMs of [0, 350, 700, 1_200]) {
+    if (waitMs) await delay(waitMs)
+    try {
+      await apiClient.get('/health', { timeout: 2_500 })
+      return
+    } catch (error) {
+      lastError = error
+      // A real HTTP response proves the API is reachable. Login should proceed
+      // so the backend can return its own validation or authorization error.
+      if (error.response) return
+    }
+  }
+  throw lastError
+}
+
 export async function register(payload) {
   return responseData(await apiClient.post('/auth/register', payload))
 }
@@ -17,7 +36,12 @@ export async function resendOtp(payload) {
 }
 
 export async function login(payload) {
+  await waitForApi()
   return responseData(await apiClient.post('/auth/login', payload))
+}
+
+export async function googleLogin(credential) {
+  return responseData(await apiClient.post('/auth/google', { credential }))
 }
 
 export async function refreshAccessToken() {
@@ -53,6 +77,7 @@ export const authApi = {
   verifyEmail,
   resendOtp,
   login,
+  googleLogin,
   refreshAccessToken,
   logout,
   logoutAll,

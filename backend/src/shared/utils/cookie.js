@@ -8,13 +8,13 @@ function durationToMilliseconds(value) {
   return amount * units[match[2]];
 }
 
-export function refreshCookieOptions({ clear = false } = {}) {
+export function refreshCookieOptions({ clear = false, persistent = true } = {}) {
   const options = {
     httpOnly: true,
     secure: env.cookieSecure,
     sameSite: env.cookieSameSite,
     path: '/api/v1/auth',
   };
-  if (!clear) options.maxAge = durationToMilliseconds(env.jwtRefreshExpiresIn);
+  if (!clear && persistent) options.maxAge = durationToMilliseconds(env.jwtRefreshExpiresIn);
   return options;
 }

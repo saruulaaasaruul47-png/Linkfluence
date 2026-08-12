@@ -18,6 +18,34 @@ export const authRepository = {
     return db.user.findUnique({ where: { id }, include: profileIncludes });
   },
 
+  findAuthIdentity(provider, subject, db = prisma) {
+    return db.authIdentity.findUnique({
+      where: { provider_subject: { provider, subject } },
+      include: { user: { include: profileIncludes } },
+    });
+  },
+
+  async createGoogleUserWithIdentity(userData, identityData) {
+    return prisma.$transaction((tx) => tx.user.create({
+      data: {
+        ...userData,
+        authIdentities: { create: identityData },
+      },
+      include: profileIncludes,
+    }));
+  },
+
+  async linkGoogleIdentity(userId, identityData, userData = {}) {
+    return prisma.$transaction(async (tx) => {
+      await tx.authIdentity.create({ data: { ...identityData, userId } });
+      return tx.user.update({
+        where: { id: userId },
+        data: userData,
+        include: profileIncludes,
+      });
+    });
+  },
+
   createPendingUser(data, db = prisma) {
     return db.user.create({ data, include: profileIncludes });
   },

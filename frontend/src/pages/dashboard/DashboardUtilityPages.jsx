@@ -1,9 +1,8 @@
-import { useState } from 'react'
+import { useEffect, useState } from 'react'
 import { ArrowUpRight, Bookmark, BriefcaseBusiness, Download, Edit3, GitCompareArrows, ImagePlus, Search, Star, Trash2, UserPlus } from 'lucide-react'
 import { useNavigate } from 'react-router-dom'
 import { DashboardHeader, DashboardPage, DashboardPanel } from '../../components/dashboard/DashboardUI'
 import { Avatar, Badge, Button, Dialog, EmptyState, FileUpload, Input, Select, Switch, Tabs, Textarea, useToast } from '../../components/ui'
-import { creators } from '../../data/marketplace'
 import { useCollaboration } from '../../context/collaboration-context'
 import { useDashboardData } from '../../context/dashboard-data-context'
 import { useMarketplace } from '../../context/marketplace-context'
@@ -11,6 +10,32 @@ import { useAuth } from '../../context/auth-context'
 import { useBusiness } from '../../hooks/useBusiness'
 import { useCreator } from '../../hooks/useCreator'
 import { useUser } from '../../hooks/useUser'
+import { marketplaceApi } from '../../api/marketplace.api'
+import { sourcingApi } from '../../api/campaign.api'
+import { toCreatorCard } from '../../api/marketplace.mapper'
+import { resolveMediaUrl } from '../../api/mediaUrl'
+
+function toShortlistCreatorCard(entry) {
+  const source = entry.creator
+  return {
+    id: source.id,
+    name: source.name,
+    username: source.slug ? `@${source.slug}` : '',
+    niche: source.niche || 'Creator',
+    location: source.location || '—',
+    followers: Number.isFinite(source.followers) ? new Intl.NumberFormat('en', { notation: 'compact', maximumFractionDigits: 1 }).format(source.followers) : '—',
+    engagement: source.engagementRate == null ? '—' : `${Number(source.engagementRate).toFixed(1)}%`,
+    rating: source.rating ?? '—',
+    price: source.startingRate ? new Intl.NumberFormat('en', { style: 'currency', currency: 'MNT', maximumFractionDigits: 0 }).format(source.startingRate) : 'Contact for rate',
+    verified: source.verified,
+    statisticsVerified: source.statisticsVerified,
+    statisticsCapturedAt: source.statisticsCapturedAt,
+    statisticsSource: source.statisticsSource,
+    avatar: resolveMediaUrl(source.avatar),
+    cover: resolveMediaUrl(source.avatar),
+    platforms: source.platforms || [],
+  }
+}
 
 function portfolioMedia(file, onLoad) {
   if (!file) return onLoad('')
@@ -162,7 +187,7 @@ function CreatorTalentCard({
   toast,
 }) {
   return (
-    <article className="group relative isolate min-h-[28rem] overflow-hidden rounded-[1.6rem] border border-white/15 bg-[#171717] transition duration-500 hover:-translate-y-1 hover:border-white/30">
+    <article className="group relative isolate min-h-[21.5rem] overflow-hidden rounded-[1.3rem] border border-white/15 bg-[#171717] transition duration-500 hover:-translate-y-1 hover:border-white/30">
       <img
         src={creator.cover}
         alt=""
@@ -172,43 +197,43 @@ function CreatorTalentCard({
       />
       <div className="absolute inset-0 bg-gradient-to-b from-black/30 via-black/15 to-black/90" />
       <div className="absolute inset-x-0 bottom-0 h-2/5 bg-gradient-to-t from-mint/35 via-mint/10 to-transparent mix-blend-screen" />
-      <div className="absolute inset-x-4 top-4 flex items-start justify-between gap-3">
-        <span className="grid size-10 place-items-center rounded-full border border-white/35 bg-black/20 text-[11px] tracking-[.1em] backdrop-blur-md">
+      <div className="absolute inset-x-3 top-3 flex items-start justify-between gap-2">
+        <span className="grid size-8 place-items-center rounded-full border border-white/35 bg-black/20 text-[9px] tracking-[.1em] backdrop-blur-md">
           {String(index + 1).padStart(2, '0')}
         </span>
-        <span className="max-w-40 truncate rounded-full border border-white/20 bg-black/25 px-3 py-2 text-[9px] font-bold uppercase tracking-[.12em] text-white/75 backdrop-blur-md">
+        <span className="max-w-36 truncate rounded-full border border-white/20 bg-black/25 px-2.5 py-1.5 text-[8px] font-bold uppercase tracking-[.1em] text-white/75 backdrop-blur-md">
           {creator.location}
         </span>
       </div>
-      <div className="absolute inset-x-4 bottom-4 text-center">
-        <div className="flex items-center justify-center gap-2 text-[9px] font-bold uppercase tracking-[.14em] text-white/75">
+      <div className="absolute inset-x-3 bottom-3 text-center">
+        <div className="flex items-center justify-center gap-2 text-[8px] font-bold uppercase tracking-[.13em] text-white/75">
           <span className="truncate">{creator.niche}</span>
         </div>
-        <h2 className="mt-2 line-clamp-2 text-[clamp(1.85rem,2.5vw,2.65rem)] font-medium leading-none tracking-[-.035em]">
+        <h2 className="mt-1.5 line-clamp-2 text-[clamp(1.3rem,1.6vw,1.75rem)] font-semibold leading-none tracking-[-.035em]">
           {creator.name}
         </h2>
-        <div className="mt-3 flex flex-wrap items-center justify-center gap-x-3 gap-y-1 text-[9px] font-bold uppercase tracking-[.1em] text-white/65">
+        <div className="mt-2 flex flex-wrap items-center justify-center gap-x-2.5 gap-y-1 text-[8px] font-bold uppercase tracking-[.08em] text-white/65">
           <span>{creator.followers}</span>
           <span className="text-mint">{creator.engagement} ER</span>
           <span className="flex items-center gap-1"><Star size={9} fill="currentColor" />{creator.rating}</span>
         </div>
-        <div className="mt-4 grid grid-cols-2 gap-2">
+        <div className="mt-3 grid grid-cols-2 gap-1.5">
           <button
             type="button"
             onClick={async () => {
               try {
                 await toggleShortlist(creator.id)
               } catch (error) {
-                toast(error.response?.data?.message || 'Shortlist could not be updated.', { type: 'error' })
+                toast(error.response?.data?.error?.message || error.response?.data?.message || 'Shortlist could not be updated.', { type: 'error' })
               }
             }}
-            className={`flex min-h-10 items-center justify-center gap-2 rounded-full border text-xs font-bold ${
+            className={`flex min-h-8 items-center justify-center gap-1.5 rounded-full border px-2 text-[10px] font-bold ${
               shortlist.includes(creator.id)
                 ? 'border-pink bg-pink text-black'
                 : 'border-white/20 bg-black/35'
             }`}
           >
-            <Bookmark size={13} />
+            <Bookmark size={11} />
             {shortlist.includes(creator.id) ? 'Saved' : 'Shortlist'}
           </button>
           <button
@@ -217,27 +242,27 @@ function CreatorTalentCard({
               try {
                 await toggleCompare(creator.id)
               } catch (error) {
-                toast(error.response?.data?.message || 'Comparison could not be updated.', { type: 'error' })
+                toast(error.response?.data?.error?.message || error.response?.data?.message || 'Comparison could not be updated.', { type: 'error' })
               }
             }}
-            className={`flex min-h-10 items-center justify-center gap-2 rounded-full border text-xs font-bold ${
+            className={`flex min-h-8 items-center justify-center gap-1.5 rounded-full border px-2 text-[10px] font-bold ${
               compare.includes(creator.id)
                 ? 'border-mint bg-mint text-black'
                 : 'border-white/20 bg-black/35'
             }`}
           >
-            <GitCompareArrows size={13} />
+            <GitCompareArrows size={11} />
             Compare
           </button>
         </div>
-        <div className="mt-2 flex gap-2">
+        <div className="mt-1.5 flex gap-1.5">
           <button
             type="button"
             onClick={() => navigate(`/creators/${creator.id}`)}
-            className="flex min-h-11 min-w-0 flex-1 items-center justify-center gap-2 rounded-full bg-white px-4 text-sm font-bold text-black transition hover:bg-pink"
+            className="flex min-h-9 min-w-0 flex-1 items-center justify-center gap-1.5 rounded-full bg-white px-3 text-xs font-bold text-black transition hover:bg-pink"
           >
-            <span className="truncate">View profile</span>
-            <ArrowUpRight size={14} className="shrink-0" />
+            <span className="truncate">View</span>
+            <ArrowUpRight size={12} className="shrink-0" />
           </button>
           <button
             type="button"
@@ -246,15 +271,15 @@ function CreatorTalentCard({
                 await inviteCreator(creator.id)
                 toast(`${creator.name} invited.`, { type: 'success' })
               } catch (error) {
-                toast(error.response?.data?.message || error.message || 'Invitation could not be sent.', { type: 'error' })
+                toast(error.response?.data?.error?.message || error.response?.data?.message || error.message || 'Invitation could not be sent.', { type: 'error' })
               }
             }}
-            className={`grid min-h-11 shrink-0 place-items-center rounded-full px-4 text-sm font-bold text-black ${
+            className={`grid size-9 shrink-0 place-items-center rounded-full text-xs font-bold text-black ${
               invited.includes(creator.id) ? 'bg-white/70' : 'bg-mint'
             }`}
             aria-label={`Invite ${creator.name}`}
           >
-            <UserPlus size={15} />
+            <UserPlus size={13} />
           </button>
         </div>
       </div>
@@ -280,6 +305,34 @@ export function BusinessCreatorsPage({ mode = 'browse' }) {
   const [audience, setAudience] = useState('')
   const [engagement, setEngagement] = useState('')
   const [sort, setSort] = useState('recommended')
+  const [remoteCreators, setRemoteCreators] = useState([])
+  const [loading, setLoading] = useState(true)
+  const [loadError, setLoadError] = useState('')
+  const [reloadKey, setReloadKey] = useState(0)
+
+  useEffect(() => {
+    let active = true
+    Promise.resolve().then(() => {
+      if (active) {
+        setLoading(true)
+        setLoadError('')
+      }
+    })
+    const request = mode === 'shortlist'
+      ? sourcingApi.shortlist().then((result) => (result.items || []).map(toShortlistCreatorCard))
+      : mode === 'compare'
+        ? sourcingApi.compare().then((result) => (result.items || []).map(toShortlistCreatorCard))
+        : marketplaceApi.listCreators({ limit: 50 }).then((result) => (result.items || []).map(toCreatorCard))
+    request
+      .then((items) => { if (active) setRemoteCreators(items) })
+      .catch((error) => {
+        if (!active) return
+        setRemoteCreators([])
+        setLoadError(error.response?.data?.error?.message || error.response?.data?.message || 'Creators could not be loaded.')
+      })
+      .finally(() => { if (active) setLoading(false) })
+    return () => { active = false }
+  }, [mode, reloadKey])
 
   const title = mode === 'shortlist'
     ? 'Creator shortlist'
@@ -287,14 +340,10 @@ export function BusinessCreatorsPage({ mode = 'browse' }) {
       ? 'Compare creators'
       : 'Find creators'
 
-  const baseCreators = mode === 'shortlist'
-    ? creators.filter((creator) => shortlist.includes(creator.id))
-    : mode === 'compare'
-      ? creators.filter((creator) => compare.includes(creator.id))
-      : creators
+  const baseCreators = remoteCreators
 
-  const nicheOptions = [...new Set(creators.map((creator) => creator.niche.split(/[·&]/)[0].trim()))]
-  const locationOptions = [...new Set(creators.map((creator) => creator.location))]
+  const nicheOptions = [...new Set(remoteCreators.map((creator) => creator.niche.split(/[·&]/)[0].trim()))]
+  const locationOptions = [...new Set(remoteCreators.map((creator) => creator.location))]
   const hasFilters = Boolean(query || niche || location || audience || engagement || sort !== 'recommended')
 
   const visible = baseCreators
@@ -323,7 +372,7 @@ export function BusinessCreatorsPage({ mode = 'browse' }) {
       if (sort === 'engagement') return Number.parseFloat(right.engagement) - Number.parseFloat(left.engagement)
       if (sort === 'rating') return right.rating - left.rating
       if (sort === 'price-low') return creatorPrice(left) - creatorPrice(right)
-      return creators.indexOf(left) - creators.indexOf(right)
+      return remoteCreators.indexOf(left) - remoteCreators.indexOf(right)
     })
 
   const clearFilters = () => {
@@ -440,7 +489,16 @@ export function BusinessCreatorsPage({ mode = 'browse' }) {
 
       {toolbar}
 
-      {mode === 'compare' ? (
+      {loading ? (
+        <p className="py-16 text-center text-sm text-white/40">Loading creators…</p>
+      ) : loadError ? (
+        <EmptyState
+          title="Creators could not be loaded"
+          description={loadError}
+          action="Try again"
+          onAction={() => setReloadKey((value) => value + 1)}
+        />
+      ) : mode === 'compare' ? (
         visible.length ? (
           <div className="overflow-x-auto rounded-2xl border border-white/10">
             <table className="w-full min-w-[850px] text-left text-xs">
@@ -452,6 +510,7 @@ export function BusinessCreatorsPage({ mode = 'browse' }) {
                   <th scope="col">Engagement</th>
                   <th scope="col">Rating</th>
                   <th scope="col">Starting price</th>
+                  <th scope="col">Statistics</th>
                   <th scope="col"><span className="sr-only">Actions</span></th>
                 </tr>
               </thead>
@@ -464,6 +523,7 @@ export function BusinessCreatorsPage({ mode = 'browse' }) {
                     <td className="text-mint">{creator.engagement}</td>
                     <td>{creator.rating}</td>
                     <td>{creator.price}</td>
+                    <td><span className="block font-semibold text-white/75">{creator.statisticsVerified ? 'Provider verified' : 'Manual / unavailable'}</span><small className="mt-1 block text-[10px] text-white/35">{creator.statisticsCapturedAt ? `Captured ${new Intl.DateTimeFormat('en', { month: 'short', day: 'numeric', year: 'numeric' }).format(new Date(creator.statisticsCapturedAt))}` : 'No verified capture'}</small></td>
                     <td>
                       <div className="flex gap-2">
                         <Button size="sm" variant="outline" onClick={() => openOfferComposer(creator)}><BriefcaseBusiness size={14} />Offer</Button>
@@ -471,7 +531,7 @@ export function BusinessCreatorsPage({ mode = 'browse' }) {
                           try {
                             await toggleCompare(creator.id)
                           } catch (error) {
-                            toast(error.response?.data?.message || 'Comparison could not be updated.', { type: 'error' })
+                            toast(error.response?.data?.error?.message || error.response?.data?.message || 'Comparison could not be updated.', { type: 'error' })
                           }
                         }}>Remove</Button>
                       </div>
@@ -490,7 +550,7 @@ export function BusinessCreatorsPage({ mode = 'browse' }) {
           />
         )
       ) : visible.length ? (
-        <div className="grid gap-5 md:grid-cols-2 xl:grid-cols-3 2xl:grid-cols-4">
+        <div className="creator-talent-grid grid gap-3">
           {visible.map((creator, index) => (
             <CreatorTalentCard
               key={creator.id}
@@ -509,10 +569,10 @@ export function BusinessCreatorsPage({ mode = 'browse' }) {
         </div>
       ) : (
         <EmptyState
-          title={baseCreators.length ? 'No creators match these filters' : 'Your shortlist is empty'}
-          description={baseCreators.length ? 'Try a broader niche, audience or engagement range.' : 'Add creators from the browse page.'}
+          title={baseCreators.length ? 'No creators match these filters' : mode === 'shortlist' ? 'Your shortlist is empty' : 'No creator channels yet'}
+          description={baseCreators.length ? 'Try a broader niche, audience or engagement range.' : mode === 'shortlist' ? 'Add creators from the browse page.' : 'Registered creator channels will appear here as soon as they are active.'}
           onAction={baseCreators.length ? clearFilters : () => navigate('/business/creators')}
-          action={baseCreators.length ? 'Clear filters' : 'Browse creators'}
+          action={baseCreators.length ? 'Clear filters' : mode === 'shortlist' ? 'Browse creators' : undefined}
         />
       )}
     </DashboardPage>

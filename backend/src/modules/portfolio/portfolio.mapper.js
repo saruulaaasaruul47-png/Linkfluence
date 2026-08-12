@@ -7,6 +7,8 @@ export const toPortfolio = (item, { publicView = false } = {}) => ({
   mediaUrl: item.mediaUrl,
   thumbnailUrl: item.thumbnailUrl || '',
   status: item.status,
+  verified: item.verified,
+  collaborationId: item.collaborationId,
   sortOrder: item.sortOrder,
   publishedAt: item.publishedAt,
   createdAt: item.createdAt,

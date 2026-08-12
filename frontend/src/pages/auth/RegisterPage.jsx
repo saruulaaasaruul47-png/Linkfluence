@@ -5,6 +5,7 @@ import { AuthIntro } from '../../components/auth/AuthIntro'
 import { AuthLayout } from '../../components/auth/AuthLayout'
 import { Button, Checkbox, Input, useToast } from '../../components/ui'
 import { useAuth } from '../../context/auth-context'
+import { useLanguage } from '../../context/language-context'
 
 const passwordPattern = /^(?=.*[a-z])(?=.*[A-Z])(?=.*\d)(?=.*[^A-Za-z0-9]).{8,}$/
 
@@ -12,6 +13,7 @@ export default function RegisterPage() {
   const navigate = useNavigate()
   const { register, isLoading, clearAuthError } = useAuth()
   const { toast } = useToast()
+  const { t } = useLanguage()
   const [show, setShow] = useState(false)
   const [terms, setTerms] = useState(false)
   const [errors, setErrors] = useState({})
@@ -49,7 +51,7 @@ export default function RegisterPage() {
         ...(values.username ? { username: values.username } : {}),
       }
       await register(payload)
-      window.sessionStorage.setItem('vyra:pending-verification-email', values.email.toLowerCase())
+      try { window.sessionStorage.setItem('vyra:pending-verification-email', values.email.toLowerCase()) } catch { /* Session storage is optional. */ }
       toast('Verification code sent to your email.', { type: 'success' })
       navigate('/verify-email', {
         state: {
@@ -63,26 +65,26 @@ export default function RegisterPage() {
     }
   }
 
-  return <AuthLayout eyebrow="A better creative network" title="START WITH" scriptWord="possibility." copy="Join without labels. Choose how you want to use Influence Hub after your account is ready.">
-    <AuthIntro kicker="Create account" title="Your next match starts here" copy="Create one account first. Your Creator or Business channel comes after email verification." />
+  return <AuthLayout eyebrow={t('auth.registerEyebrow')} title={t('auth.registerTitle')} scriptWord={t('auth.registerScript')} copy={t('auth.registerCopy')}>
+    <AuthIntro kicker={t('auth.createKicker')} title={t('auth.registerIntroTitle')} copy={t('auth.registerIntroCopy')} />
     <form onSubmit={submit} className="space-y-4" noValidate>
-      <Input name="displayName" label="Full name" placeholder="Your name" error={errors.displayName} autoComplete="name" reserveMessage />
-      <Input name="username" label="Username (optional)" placeholder="your_name" error={errors.username} autoComplete="username" reserveMessage />
-      <Input name="email" type="email" label="Email address" placeholder="you@studio.com" error={errors.email} autoComplete="email" reserveMessage />
+      <Input name="displayName" label={t('auth.fullName')} placeholder={t('auth.yourName')} error={errors.displayName} autoComplete="name" reserveMessage />
+      <Input name="username" label={t('auth.usernameOptional')} placeholder="your_name" error={errors.username} autoComplete="username" reserveMessage />
+      <Input name="email" type="email" label={t('auth.email')} placeholder="you@studio.com" error={errors.email} autoComplete="email" reserveMessage />
       <div className="relative">
-        <Input name="password" type={show ? 'text' : 'password'} label="Password" placeholder="8+ strong characters" error={errors.password} autoComplete="new-password" reserveMessage />
-        <button type="button" onClick={() => setShow(!show)} aria-label="Toggle password" className="absolute right-4 top-[2.65rem] text-[var(--subtle)]">{show ? <EyeOff size={17} /> : <Eye size={17} />}</button>
+        <Input name="password" type={show ? 'text' : 'password'} label={t('auth.password')} placeholder={t('auth.strongPassword')} error={errors.password} autoComplete="new-password" reserveMessage />
+        <button type="button" onClick={() => setShow(!show)} aria-label={t('auth.togglePassword')} className="absolute right-4 top-[2.65rem] text-[var(--subtle)]">{show ? <EyeOff size={17} /> : <Eye size={17} />}</button>
       </div>
-      <Input name="confirmPassword" type={show ? 'text' : 'password'} label="Confirm password" placeholder="Repeat your password" error={errors.confirmPassword} autoComplete="new-password" reserveMessage />
+      <Input name="confirmPassword" type={show ? 'text' : 'password'} label={t('auth.confirmPassword')} placeholder={t('auth.repeatPassword')} error={errors.confirmPassword} autoComplete="new-password" reserveMessage />
       <div>
-        <Checkbox label="I agree to the Terms and Privacy Policy" checked={terms} onChange={(event) => setTerms(event.target.checked)} />
+        <Checkbox label={t('auth.agreeTerms')} checked={terms} onChange={(event) => setTerms(event.target.checked)} />
         <div className="min-h-6">{errors.terms && <p className="ui-error">{errors.terms}</p>}</div>
       </div>
       <div aria-live="polite" className="min-h-[3.2rem]">{formError && <p role="alert" className="ui-error rounded-xl border border-red-300/20 bg-red-300/[.06] p-3">{formError}</p>}</div>
       <Button type="submit" variant="pink" size="lg" className="w-full" disabled={isLoading}>
-        {isLoading ? 'Creating account…' : 'Create account'} <ArrowRight size={17} />
+        {isLoading ? t('auth.creatingAccount') : t('auth.createAccount')} <ArrowRight size={17} />
       </Button>
     </form>
-    <p className="mt-7 text-center text-sm text-[var(--subtle)]">Already have an account? <Link to="/login" className="font-bold text-[var(--foreground)]">Sign in</Link></p>
+    <p className="mt-7 text-center text-sm text-[var(--subtle)]">{t('auth.alreadyAccount')} <Link to="/login" className="font-bold text-[var(--foreground)]">{t('common.signIn')}</Link></p>
   </AuthLayout>
 }

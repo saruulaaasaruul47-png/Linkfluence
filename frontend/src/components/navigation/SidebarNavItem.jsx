@@ -55,12 +55,12 @@ export function SidebarNavItem({
         onMouseLeave={() => setTooltip(null)}
         onFocus={showTooltip}
         onBlur={() => setTooltip(null)}
-        className={({ isActive }) => `flex items-center rounded-xl py-2.5 text-xs transition ${
+        className={({ isActive }) => `flex min-h-9 w-full items-center rounded-xl py-2 text-[11px] transition ${
           collapsed ? 'justify-center px-2' : 'gap-3 px-3'
         } ${isActive || forceActive ? activeClass : inactiveClass}`}
       >
-        <Icon size={16} aria-hidden="true" />
-        {!collapsed && <span>{label}</span>}
+        <Icon size={15} className="shrink-0" aria-hidden="true" />
+        {!collapsed && <span className="min-w-0 truncate">{label}</span>}
       </NavLink>
 
       {collapsed && tooltip && typeof document !== 'undefined' && createPortal(

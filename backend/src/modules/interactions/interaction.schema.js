@@ -20,3 +20,14 @@ export const shareSchema = envelope(z.object({
   targetId: z.string().trim().min(1).max(100),
   channel: z.string().trim().max(40).optional(),
 }).strict());
+
+const channelParams = z.object({
+  targetType: z.enum(['creator', 'business']).transform((value) => value.toUpperCase()),
+  targetId: z.string().trim().min(1).max(100),
+});
+const cursorQuery = z.object({
+  cursor: z.string().trim().min(1).max(100).optional(),
+  limit: z.coerce.number().int().min(1).max(50).default(20),
+}).strict();
+export const socialSummarySchema = envelope(z.unknown().optional(), channelParams);
+export const socialListSchema = envelope(z.unknown().optional(), channelParams, cursorQuery);

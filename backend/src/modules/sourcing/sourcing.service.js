@@ -1,4 +1,5 @@
 import { AppError } from '../../shared/errors/AppError.js';
+import { bootstrapCollaboration } from '../collaborations/collaboration-bootstrap.service.js';
 import { toInvitation, toSourcedCreator } from './sourcing.mapper.js';
 import { sourcingRepository } from './sourcing.repository.js';
 
@@ -167,10 +168,32 @@ export const sourcingService = {
     if (invitation.status !== 'PENDING') {
       throw new AppError('This invitation has already been answered.', 409, 'INVITATION_ALREADY_RESPONDED');
     }
-    return toInvitation(await sourcingRepository.updateInvitation(id, {
+    const orchestration = action === 'ACCEPT'
+      ? (tx) => bootstrapCollaboration(tx, {
+          sourceType: 'INVITATION',
+          sourceId: invitation.id,
+          actorId: userId,
+          businessId: invitation.business.id,
+          businessUserId: invitation.business.userId,
+          creatorId: invitation.creator.id,
+          creatorUserId: invitation.creator.userId,
+          campaignId: invitation.campaign.id,
+          title: invitation.campaign.title,
+          contentType: invitation.campaign.platforms?.join(', ') || 'Campaign invitation',
+          deliverables: invitation.campaign.deliverables,
+          budget: invitation.campaign.budgetMax || invitation.campaign.budgetMin || 0,
+          currency: invitation.campaign.currency,
+          timeline: invitation.campaign.deadline ? `Due ${invitation.campaign.deadline.toISOString()}` : null,
+          publishBy: invitation.campaign.deadline,
+          message: invitation.message,
+        })
+      : null;
+    const result = await sourcingRepository.respondInvitation(id, {
       status: action === 'ACCEPT' ? 'ACCEPTED' : 'DECLINED',
       respondedAt: new Date(),
-    }));
+    }, orchestration);
+    if (!result) throw new AppError('This invitation has already been answered.', 409, 'INVITATION_ALREADY_RESPONDED');
+    return { ...toInvitation(result.record), workspaceId: result.workspaceId };
   },
 
   async cancel(userId, id) {

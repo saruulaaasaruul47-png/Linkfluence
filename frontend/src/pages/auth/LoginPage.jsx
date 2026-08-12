@@ -3,30 +3,32 @@ import { ArrowRight, Eye, EyeOff } from 'lucide-react'
 import { Link, useLocation, useNavigate } from 'react-router-dom'
 import { AuthIntro } from '../../components/auth/AuthIntro'
 import { AuthLayout } from '../../components/auth/AuthLayout'
+import { GoogleSignInButton } from '../../components/auth/GoogleSignInButton'
 import { Button, Checkbox, Input, useToast } from '../../components/ui'
 import { useAuth } from '../../context/auth-context'
-
-function GoogleMark() {
-  return <svg aria-hidden="true" viewBox="0 0 24 24" className="size-4"><path fill="#4285F4" d="M21.6 12.23c0-.72-.06-1.4-.18-2.07H12v3.92h5.38a4.6 4.6 0 0 1-2 3.02v2.54h3.24c1.9-1.74 2.98-4.31 2.98-7.41Z"/><path fill="#34A853" d="M12 22c2.7 0 4.98-.9 6.63-2.36l-3.24-2.54c-.9.6-2.05.96-3.39.96-2.61 0-4.82-1.76-5.61-4.13H3.05v2.62A10 10 0 0 0 12 22Z"/><path fill="#FBBC05" d="M6.39 13.93A6.02 6.02 0 0 1 6.08 12c0-.67.12-1.32.31-1.93V7.45H3.05A10 10 0 0 0 2 12c0 1.64.39 3.19 1.05 4.55l3.34-2.62Z"/><path fill="#EA4335" d="M12 5.94c1.47 0 2.78.5 3.82 1.49l2.88-2.88A9.67 9.67 0 0 0 12 2a10 10 0 0 0-8.95 5.45l3.34 2.62C7.18 7.7 9.39 5.94 12 5.94Z"/></svg>
-}
+import { useLanguage } from '../../context/language-context'
 
 function getPostLoginPath(user, requestedPath) {
-  const onboardingPaths = ['/welcome', '/verify-email', '/onboarding/creator', '/onboarding/business']
-  if (requestedPath && !onboardingPaths.includes(requestedPath)) return requestedPath
+  const blockedReturnPaths = ['/login', '/register', '/welcome', '/verify-email', '/403', '/401', '/500', '/onboarding/creator', '/onboarding/business']
+  const safeRequestedPath = typeof requestedPath === 'string' && requestedPath.startsWith('/') ? requestedPath : ''
+  const requestedRole = safeRequestedPath.match(/^\/(creator|business|admin)(?:\/|$)/)?.[1]
+  if (safeRequestedPath && !blockedReturnPaths.includes(safeRequestedPath) && (!requestedRole || user.roles.includes(requestedRole))) return safeRequestedPath
   if (user.roles.includes('admin')) return '/admin/dashboard'
 
-  const preferredRole = window.localStorage.getItem('vyra:last-dashboard-role')
+  let preferredRole = ''
+  try { preferredRole = window.localStorage.getItem('vyra:last-dashboard-role') || '' } catch { /* Role priority below is still safe. */ }
   if (preferredRole && user.roles.includes(preferredRole)) return `/${preferredRole}/dashboard`
   if (user.roles.includes('creator')) return '/creator/dashboard'
   if (user.roles.includes('business')) return '/business/dashboard'
-  return '/discover'
+  return '/showcase'
 }
 
 export default function LoginPage() {
   const navigate = useNavigate()
   const location = useLocation()
-  const { login, isLoading, clearAuthError } = useAuth()
+  const { login, loginWithGoogle, isLoading, clearAuthError } = useAuth()
   const { toast } = useToast()
+  const { t } = useLanguage()
   const [show, setShow] = useState(false)
   const [remember, setRemember] = useState(true)
   const [errors, setErrors] = useState({})
@@ -48,12 +50,12 @@ export default function LoginPage() {
     if (Object.keys(next).length) return
 
     try {
-      const user = await login({ email, password })
+      const user = await login({ email, password, remember })
       toast('Welcome back.', { type: 'success' })
       navigate(getPostLoginPath(user, location.state?.from), { replace: true })
     } catch (error) {
       if (error.code === 'EMAIL_NOT_VERIFIED') {
-        window.sessionStorage.setItem('vyra:pending-verification-email', email)
+        try { window.sessionStorage.setItem('vyra:pending-verification-email', email) } catch { /* Session storage is optional. */ }
         navigate('/verify-email', {
           state: {
             email,
@@ -67,25 +69,43 @@ export default function LoginPage() {
     }
   }
 
-  return <AuthLayout eyebrow="Creator marketplace · Sign in" title="MAKE WORK" scriptWord="matter." copy="One place for creators and brands to discover the right fit, shape sharper campaigns and move culture together.">
-    <AuthIntro kicker="Welcome back" title="Sign in to Influence Hub" copy="Continue where your next collaboration left off." />
+  const signInWithGoogle = async (credential) => {
+    if (isLoading) return
+    clearAuthError()
+    setFormError('')
+    try {
+      const user = await loginWithGoogle(credential)
+      toast('Welcome.', { type: 'success' })
+      navigate(getPostLoginPath(user, location.state?.from), { replace: true })
+    } catch (error) {
+      setFormError(error.message)
+    }
+  }
+
+  return <AuthLayout eyebrow={t('auth.loginEyebrow')} title={t('auth.loginTitle')} scriptWord={t('auth.loginScript')} copy={t('auth.loginCopy')}>
+    <AuthIntro kicker={t('auth.welcomeBack')} title={t('auth.signInTitle')} copy={t('auth.signInCopy')} />
     <form onSubmit={submit} className="space-y-4" noValidate>
-      <Input name="email" type="email" label="Email address" placeholder="you@studio.com" error={errors.email} autoComplete="email" reserveMessage />
+      <Input name="email" type="email" label={t('auth.email')} placeholder="you@studio.com" error={errors.email} autoComplete="email" reserveMessage />
       <div className="relative">
-        <Input name="password" type={show ? 'text' : 'password'} label="Password" placeholder="Enter your password" error={errors.password} autoComplete="current-password" reserveMessage />
-        <button type="button" onClick={() => setShow(!show)} aria-label="Toggle password" className="absolute right-4 top-[2.65rem] text-[var(--subtle)]">{show ? <EyeOff size={17} /> : <Eye size={17} />}</button>
+        <Input name="password" type={show ? 'text' : 'password'} label={t('auth.password')} placeholder={t('auth.enterPassword')} error={errors.password} autoComplete="current-password" reserveMessage />
+        <button type="button" onClick={() => setShow(!show)} aria-label={t('auth.togglePassword')} className="absolute right-4 top-[2.65rem] text-[var(--subtle)]">{show ? <EyeOff size={17} /> : <Eye size={17} />}</button>
       </div>
       <div className="flex items-center justify-between gap-4">
-        <Checkbox label="Keep me signed in" checked={remember} onChange={(event) => setRemember(event.target.checked)} />
-        <Link to="/forgot-password" className="text-xs font-bold underline decoration-pink decoration-2 underline-offset-4">Forgot password?</Link>
+        <Checkbox label={t('auth.keepSignedIn')} checked={remember} onChange={(event) => setRemember(event.target.checked)} />
+        <Link to="/forgot-password" className="text-xs font-bold underline decoration-pink decoration-2 underline-offset-4">{t('auth.forgotPassword')}</Link>
       </div>
       <div aria-live="polite" className="min-h-[3.2rem]">{formError && <p role="alert" className="ui-error rounded-xl border border-red-300/20 bg-red-300/[.06] p-3">{formError}</p>}</div>
       <Button type="submit" size="lg" className="mt-2 w-full" disabled={isLoading}>
-        {isLoading ? 'Signing in…' : 'Sign in'} <ArrowRight size={17} />
+        {isLoading ? t('auth.signingIn') : t('common.signIn')} <ArrowRight size={17} />
       </Button>
     </form>
-    <div className="auth-divider"><span>or</span></div>
-    <button type="button" className="auth-google-button" onClick={() => toast('Google OAuth is not connected yet.', { type: 'info' })}><GoogleMark/><span>Continue with Google</span></button>
-    <p className="mt-6 text-center text-sm text-[var(--subtle)]">New to the Hub? <Link to="/register" className="font-bold text-[var(--foreground)] transition hover:text-pink">Create an account</Link></p>
+    <div className="auth-divider"><span>{t('auth.or')}</span></div>
+    <GoogleSignInButton
+      disabled={isLoading}
+      label={t('auth.continueGoogle')}
+      onCredential={signInWithGoogle}
+      onError={(error) => setFormError(error.message)}
+    />
+    <p className="mt-6 text-center text-sm text-[var(--subtle)]">{t('auth.newHere')} <Link to="/register" className="font-bold text-[var(--foreground)] transition hover:text-pink">{t('auth.createAccount')}</Link></p>
   </AuthLayout>
 }

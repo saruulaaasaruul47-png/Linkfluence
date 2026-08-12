@@ -205,6 +205,33 @@ describe('Authentication API integration', () => {
     assert.equal(refreshAfterLogout.body.error.code, 'INVALID_REFRESH_TOKEN');
   });
 
+  test('keeps remember-me cookie persistence across refresh rotation', async () => {
+    const sessionLogin = await request(app).post('/api/v1/auth/login').send({
+      email,
+      password,
+      remember: false,
+    });
+    assert.equal(sessionLogin.status, 200);
+    const sessionCookie = sessionLogin.headers['set-cookie'][0];
+    assert.doesNotMatch(sessionCookie, /Max-Age=/i);
+    assert.doesNotMatch(sessionCookie, /Expires=/i);
+
+    const sessionRefresh = await request(app)
+      .post('/api/v1/auth/refresh')
+      .set('Cookie', sessionCookie);
+    assert.equal(sessionRefresh.status, 200);
+    assert.doesNotMatch(sessionRefresh.headers['set-cookie'][0], /Max-Age=/i);
+    assert.doesNotMatch(sessionRefresh.headers['set-cookie'][0], /Expires=/i);
+
+    const persistentLogin = await request(app).post('/api/v1/auth/login').send({
+      email,
+      password,
+      remember: true,
+    });
+    assert.equal(persistentLogin.status, 200);
+    assert.match(persistentLogin.headers['set-cookie'][0], /Max-Age=/i);
+  });
+
   test('returns generic responses for invalid credentials and unknown resend email', async () => {
     const wrongPassword = await request(app).post('/api/v1/auth/login').send({
       email,

@@ -61,8 +61,19 @@ export const loginSchema = requestEnvelope(
     .object({
       email,
       password: z.string({ error: 'Password is required.' }).min(1, 'Password is required.'),
+      remember: z.boolean().optional().default(true),
     })
     .strict(),
+);
+
+export const googleLoginSchema = requestEnvelope(
+  z.object({
+    credential: z
+      .string({ error: 'Google credential is required.' })
+      .trim()
+      .min(20, 'Google credential is invalid.')
+      .max(8192, 'Google credential is invalid.'),
+  }).strict(),
 );
 
 export const forgotPasswordSchema = requestEnvelope(z.object({ email }).strict());

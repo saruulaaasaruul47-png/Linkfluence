@@ -52,4 +52,40 @@ export const paymentRepository = {
       return { items, total };
     });
   },
+
+  findCreatorByUserId(userId, db = prisma) {
+    return db.creatorProfile.findUnique({ where: { userId }, select: { id: true } });
+  },
+
+  earningsLedger(userId, year, db = prisma) {
+    const occurredAt = year
+      ? { gte: new Date(Date.UTC(year, 0, 1)), lt: new Date(Date.UTC(year + 1, 0, 1)) }
+      : undefined;
+    return db.ledgerEntry.findMany({
+      where: {
+        type: { in: ['CREATOR_EARNED', 'CREATOR_PENDING', 'CREATOR_RELEASE', 'PAYOUT_SENT', 'PAYOUT'] },
+        OR: [{ creditAccount: { ownerId: userId } }, { debitAccount: { ownerId: userId } }],
+        ...(occurredAt && { occurredAt }),
+      },
+      include: {
+        collaboration: {
+          select: {
+            id: true,
+            campaign: { select: { title: true } },
+            business: { select: { companyName: true } },
+          },
+        },
+      },
+      orderBy: { occurredAt: 'asc' },
+    });
+  },
+
+  creatorPayableBalance(userId, currency, db = prisma) {
+    return db.ledgerAccount.findUnique({
+      where: { ownerId_type_currency: { ownerId: userId, type: 'CREATOR_PAYABLE', currency } },
+    });
+  },
+  creatorBalance(userId, type, currency, db = prisma) {
+    return db.ledgerAccount.findUnique({ where: { ownerId_type_currency: { ownerId: userId, type, currency } } });
+  },
 };

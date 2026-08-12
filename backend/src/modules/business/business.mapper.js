@@ -1,3 +1,6 @@
+import { verifiedPayerTruth } from '../payments/payer-trust.js';
+import { toSocialAccount } from '../social-sync/social.mapper.js';
+
 export function toBusinessProfile(profile) {
   const preferences = profile.preferences && typeof profile.preferences === 'object'
     ? profile.preferences
@@ -24,6 +27,8 @@ export function toBusinessProfile(profile) {
     cover: profile.coverUrl || '',
     coverUrl: profile.coverUrl || '',
     verificationStatus: profile.verificationStatus,
+    socialConnections: profile.socialAccounts?.map(toSocialAccount) || [],
+    ...verifiedPayerTruth(profile.collaborations),
     createdAt: profile.createdAt,
     updatedAt: profile.updatedAt,
   };

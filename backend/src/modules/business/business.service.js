@@ -3,6 +3,7 @@ import { mediaService } from '../media/public.js';
 import { toUserProfile } from '../users/public.js';
 import { toBusinessProfile } from './business.mapper.js';
 import { businessRepository } from './business.repository.js';
+import { assertFeatureEnabled, assertSettingEnabled } from '../operations/platform-config.service.js';
 
 function buildProfileData(payload, creating = false) {
   const data = {};
@@ -51,6 +52,8 @@ async function applyOwnedMedia(userId, payload, data) {
 
 export const businessService = {
   async create(userId, payload) {
+    await assertSettingEnabled('businessApplications', 'BUSINESS_APPLICATIONS_CLOSED', 'Business applications are temporarily closed.');
+    await assertFeatureEnabled('business_onboarding', { id: userId, roles: ['VIEWER'] });
     if (await businessRepository.findByUserId(userId)) {
       throw new AppError('A business profile already exists.', 409, 'BUSINESS_PROFILE_EXISTS');
     }

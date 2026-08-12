@@ -19,14 +19,23 @@ function normalizeError(error) {
         ? error.meta.target.join(',')
         : error.meta?.target;
       const isUsername = /username|slug/i.test(String(target || ''));
+      const isEmail = /email/i.test(String(target || ''));
       return new AppError(
-        isUsername ? 'This username is already in use.' : 'This email is already registered.',
+        isUsername
+          ? 'This username is already in use.'
+          : isEmail
+            ? 'This email is already registered.'
+            : 'A record with these details already exists.',
         409,
-        isUsername ? AUTH_ERROR.USERNAME_EXISTS : AUTH_ERROR.EMAIL_EXISTS,
+        isUsername
+          ? AUTH_ERROR.USERNAME_EXISTS
+          : isEmail
+            ? AUTH_ERROR.EMAIL_EXISTS
+            : 'RESOURCE_ALREADY_EXISTS',
       );
     }
     if (error.code === 'P2025') {
-      return new AppError('The requested resource was not found.', 404, AUTH_ERROR.USER_NOT_FOUND);
+      return new AppError('The requested resource was not found.', 404, 'RESOURCE_NOT_FOUND');
     }
     return new AppError('A database operation failed.', 500, AUTH_ERROR.DATABASE);
   }
@@ -41,7 +50,7 @@ function normalizeError(error) {
   return new AppError('An unexpected error occurred.', 500, AUTH_ERROR.INTERNAL);
 }
 
-export function errorHandler(error, _req, res, _next) {
+export function errorHandler(error, req, res, _next) {
   const normalized = normalizeError(error);
 
   if (!normalized.isOperational || normalized.statusCode >= 500) {
@@ -50,6 +59,7 @@ export function errorHandler(error, _req, res, _next) {
       code: normalized.code,
       message: error?.message,
       stack: env.nodeEnv === 'development' ? error?.stack : undefined,
+      requestId: req.requestId,
     });
   }
 
@@ -59,6 +69,7 @@ export function errorHandler(error, _req, res, _next) {
       code: normalized.code,
       message: normalized.message,
       details: normalized.details ?? null,
+      requestId: req.requestId,
     },
   };
 

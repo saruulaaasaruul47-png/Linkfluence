@@ -4,9 +4,9 @@ import { discoveryService } from './discovery.service.js';
 
 export const discoveryController = {
   discover: asyncHandler(async (req, res) => {
-    sendSuccess(res, 200, 'Marketplace discovery loaded.', await discoveryService.discover(req.validated.query.limit));
+    sendSuccess(res, 200, 'Marketplace discovery loaded.', await discoveryService.discover(req.validated.query.limit, req.user));
   }),
   search: asyncHandler(async (req, res) => {
-    sendSuccess(res, 200, 'Search completed.', await discoveryService.search(req.validated.query));
+    sendSuccess(res, 200, 'Search completed.', await discoveryService.search(req.validated.query, req.user?.roles));
   }),
 };

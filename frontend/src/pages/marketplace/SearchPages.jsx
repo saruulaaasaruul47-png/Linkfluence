@@ -1,6 +1,6 @@
-import { useEffect, useMemo, useState } from 'react'
+import { useCallback, useEffect, useRef, useState } from 'react'
 import { Search } from 'lucide-react'
-import { Link, useSearchParams } from 'react-router-dom'
+import { Link, Navigate, useSearchParams } from 'react-router-dom'
 import { campaignApi } from '../../api/campaign.api'
 import { marketplaceApi } from '../../api/marketplace.api'
 import {
@@ -14,18 +14,19 @@ import { ActiveFilters, FilterSidebar, SearchBar } from '../../components/market
 import { NoResults, SectionHeader } from '../../components/marketplace/MarketplaceLayout'
 import { BusinessCard, CampaignCard, CreatorCard, ShowcaseCard } from '../../components/marketplace/cards'
 import { DashboardHeader, DashboardPage } from '../../components/dashboard/DashboardUI'
-import { businesses, campaigns, creators, showcases } from '../../data/marketplace'
-import { useMarketplace } from '../../context/marketplace-context'
+import { ProposalDialog } from '../dashboard/CampaignDashboardPages'
+import { useAuth } from '../../context/auth-context'
+import { useDebouncedValue } from '../../hooks/useDebouncedValue'
+import { buildMarketplaceSearch, mergeUniqueById, parseMarketplaceSearch } from '../../lib/marketplaceSearchQuery'
 
 const firstNumber = (value) => Number(String(value).match(/[0-9]+(?:\.[0-9]+)?/)?.[0] || 0)
-const filterNames = ['niche', 'platform', 'verified', 'rating', 'engagement', 'followers', 'price', 'industry', 'campaigns', 'open', 'goal', 'budget', 'deadline']
 const searchLinks = [
   ['Creators', '/search/creators', 'creator'],
   ['Businesses', '/search/businesses', 'business'],
   ['Campaigns', '/search/campaigns', 'campaign'],
 ]
 
-function SearchHero({ info, type, global = false }) {
+function SearchHero({ info, type, global = false, canBrowseCampaigns = false }) {
   return <section className="border-b border-white/10 bg-white/[.015]">
     <div className="mx-auto max-w-[1500px] px-5 py-10 lg:px-8 lg:py-12">
       <p className="eyebrow text-white/35">{info[0]}</p>
@@ -37,128 +38,119 @@ function SearchHero({ info, type, global = false }) {
           <p className="mt-4 max-w-2xl text-sm leading-6 text-white/45">{info[3]}</p>
         </div>
         {!global&&<nav aria-label="Search categories" className="flex flex-wrap gap-2">
-          {searchLinks.map(([label,to,id])=><Link key={id} to={to} aria-current={type===id?'page':undefined} className={`inline-flex min-h-9 items-center rounded-full border px-4 text-[10px] font-bold uppercase tracking-[.08em] transition ${type===id?'border-pink bg-pink text-black':'border-white/10 text-white/45 hover:border-white/25 hover:text-white'}`}>{label}</Link>)}
+          {searchLinks.filter(([, , id]) => id !== 'campaign' || canBrowseCampaigns).map(([label,to,id])=><Link key={id} to={to} aria-current={type===id?'page':undefined} className={`inline-flex min-h-9 items-center rounded-full border px-4 text-[10px] font-bold uppercase tracking-[.08em] transition ${type===id?'border-pink bg-pink text-black':'border-white/10 text-white/45 hover:border-white/25 hover:text-white'}`}>{label}</Link>)}
         </nav>}
       </div>
     </div>
   </section>
 }
 
-function useDebouncedValue(value, delay = 250) {
-  const [debounced, setDebounced] = useState(value)
-  useEffect(() => {
-    const timer = window.setTimeout(() => setDebounced(value), delay)
-    return () => window.clearTimeout(timer)
-  }, [delay, value])
-  return debounced
-}
-
-function initialFilters(params) {
-  return filterNames.reduce((result, name) => {
-    const value = params.get(name)
-    if (value) result[name] = ['verified', 'open'].includes(name) ? value === 'true' : value
-    return result
-  }, {})
-}
-
 function SearchPage({ type, dashboard = false }) {
+  const { hasRole } = useAuth()
   const [params, setParams] = useSearchParams()
-  const [query, setQuery] = useState(params.get('q') || params.get('category') || '')
-  const [filters, setFilters] = useState(() => initialFilters(params))
-  const [sort, setSort] = useState(params.get('sort') || 'recommended')
+  const [initialSearch] = useState(() => parseMarketplaceSearch(params))
+  const [query, setQuery] = useState(initialSearch.query)
+  const [filters, setFilters] = useState(initialSearch.filters)
+  const [sort, setSort] = useState(initialSearch.sort)
   const [drawer, setDrawer] = useState(false)
-  const [remoteSource, setRemoteSource] = useState(null)
+  const [workRequestCampaign, setWorkRequestCampaign] = useState(null)
+  const [remote, setRemote] = useState({ items: [], nextCursor: null, loading: true, loadingMore: false, error: '' })
   const debouncedQuery = useDebouncedValue(query)
-  const { saved, following } = useMarketplace()
-  const fallbackSource = type === 'creator' ? creators : type === 'business' ? businesses : campaigns
+  const loadMoreRef = useRef(null)
+  const moreControllerRef = useRef(null)
 
-  useEffect(() => {
-    let active = true
+  const requestResults = useCallback((cursor, signal) => {
     const common = {
       q: debouncedQuery || undefined,
-      page: 1,
-      limit: 30,
+      limit: 12,
+      ...(cursor && { cursor }),
     }
-    let request
     if (type === 'creator') {
-      request = marketplaceApi.listCreators({
+      return marketplaceApi.listCreators({
         ...common,
         category: filters.niche || undefined,
         platform: filters.platform
           ? filters.platform === 'Twitch' ? 'OTHER' : filters.platform.toUpperCase().replace('-', '_')
           : undefined,
         verified: filters.verified || undefined,
+        available: filters.available || undefined,
         minRating: filters.rating ? firstNumber(filters.rating) : undefined,
         minEngagement: filters.engagement ? firstNumber(filters.engagement) : undefined,
         minFollowers: filters.followers === '100K–250K' ? 100000 : filters.followers === '250K+' ? 250000 : undefined,
+        maxFollowers: filters.followers === 'Under 100K' ? 99999 : filters.followers === '100K–250K' ? 249999 : undefined,
         minPrice: filters.price === '₮1.5M–₮2M' ? 1500000 : filters.price === '₮2M+' ? 2000000 : undefined,
         maxPrice: filters.price === 'Under ₮1.5M' ? 1500000 : filters.price === '₮1.5M–₮2M' ? 2000000 : undefined,
+        currency: filters.currency || undefined,
+        location: filters.location || undefined,
+        language: filters.language || undefined,
+        skills: filters.skills || undefined,
         sort: sort === 'recommended' ? 'relevant' : sort,
-      }).then((result) => result.items.map(toCreatorCard))
-    } else if (type === 'business') {
-      request = marketplaceApi.listBusinesses({
+      }, { signal }).then((result) => ({ items: result.items.map(toCreatorCard), nextCursor: result.nextCursor }))
+    }
+    if (type === 'business') {
+      return marketplaceApi.listBusinesses({
         ...common,
         industry: filters.industry || undefined,
+        location: filters.location || undefined,
         verified: filters.verified || undefined,
         minRating: filters.rating ? firstNumber(filters.rating) : undefined,
+        minCompletedCollaborations: filters.completed ? firstNumber(filters.completed) : undefined,
         sort: sort === 'recommended' ? 'relevant' : sort,
-      }).then((result) => result.items.map(toBusinessCard))
-    } else {
-      request = campaignApi.discover({
-        ...common,
+      }, { signal }).then((result) => ({ items: result.items.map(toBusinessCard), nextCursor: result.nextCursor }))
+    }
+    return campaignApi.discover({
+        ...common, page: 1,
         category: filters.niche || undefined,
         platform: filters.platform ? filters.platform.toUpperCase().replace('-', '_') : undefined,
         sort: 'newest',
-      }).then((result) => result.items.map(toCampaignCard))
-    }
-    request.then((items) => { if (active) setRemoteSource(items) }).catch(() => {})
-    return () => { active = false }
-  }, [debouncedQuery, filters.engagement, filters.followers, filters.industry, filters.niche, filters.platform, filters.price, filters.rating, filters.verified, sort, type])
-  const source = remoteSource || fallbackSource
+      }, { signal }).then((result) => ({ items: result.items.map(toCampaignCard), nextCursor: null }))
+  }, [debouncedQuery, filters, sort, type])
 
   useEffect(() => {
-    const next = new URLSearchParams()
-    if (query.trim()) next.set('q', query.trim())
-    if (sort !== 'recommended') next.set('sort', sort)
-    Object.entries(filters).forEach(([name, value]) => {
-      if (value) next.set(name, String(value))
-    })
-    setParams(next, { replace: true })
+    const controller = new AbortController()
+    moreControllerRef.current?.abort()
+    queueMicrotask(() => setRemote({ items: [], nextCursor: null, loading: true, loadingMore: false, error: '' }))
+    requestResults(null, controller.signal)
+      .then((result) => setRemote({ items: result.items, nextCursor: result.nextCursor || null, loading: false, loadingMore: false, error: '' }))
+      .catch((error) => {
+        if (error.code !== 'ERR_CANCELED') setRemote({ items: [], nextCursor: null, loading: false, loadingMore: false, error: 'Results could not be loaded.' })
+      })
+    return () => controller.abort()
+  }, [requestResults])
+
+  const loadMore = useCallback(() => {
+    if (!remote.nextCursor || remote.loading || remote.loadingMore) return
+    moreControllerRef.current?.abort()
+    const controller = new AbortController()
+    moreControllerRef.current = controller
+    setRemote((current) => ({ ...current, loadingMore: true, error: '' }))
+    requestResults(remote.nextCursor, controller.signal)
+      .then((result) => setRemote((current) => ({
+        ...current,
+        items: mergeUniqueById(current.items, result.items),
+        nextCursor: result.nextCursor || null,
+        loadingMore: false,
+      })))
+      .catch((error) => {
+        if (error.code !== 'ERR_CANCELED') setRemote((current) => ({ ...current, loadingMore: false, error: 'More results could not be loaded.' }))
+      })
+  }, [remote.loading, remote.loadingMore, remote.nextCursor, requestResults])
+
+  useEffect(() => {
+    const target = loadMoreRef.current
+    if (!target || !remote.nextCursor) return undefined
+    const observer = new IntersectionObserver((entries) => {
+      if (entries[0]?.isIntersecting) loadMore()
+    }, { rootMargin: '500px 0px' })
+    observer.observe(target)
+    return () => observer.disconnect()
+  }, [loadMore, remote.nextCursor])
+
+  useEffect(() => {
+    setParams(buildMarketplaceSearch({ query, sort, filters }), { replace: true })
   }, [filters, query, setParams, sort])
 
-  const results = useMemo(() => {
-    let items = source.filter((item) => JSON.stringify(item).toLowerCase().includes(debouncedQuery.toLowerCase()))
-    if (type === 'creator') {
-      if (filters.niche) items = items.filter((item) => item.niche.includes(filters.niche))
-      if (filters.platform) items = items.filter((item) => item.platforms.includes(filters.platform))
-      if (filters.verified) items = items.filter((item) => item.verified)
-      if (filters.rating) items = items.filter((item) => item.rating >= firstNumber(filters.rating))
-      if (filters.engagement) items = items.filter((item) => firstNumber(item.engagement) >= firstNumber(filters.engagement))
-      if (filters.followers) items = items.filter((item) => { const audience = firstNumber(item.followers); return filters.followers === 'Under 100K' ? audience < 100 : filters.followers === '100K–250K' ? audience >= 100 && audience < 250 : audience >= 250 })
-      if (filters.price) items = items.filter((item) => { const price = firstNumber(item.price); return filters.price === 'Under ₮1.5M' ? price < 1.5 : filters.price === '₮1.5M–₮2M' ? price >= 1.5 && price <= 2 : price > 2 })
-    }
-    if (type === 'business') {
-      if (filters.industry) items = items.filter((item) => item.industry === filters.industry)
-      if (filters.rating) items = items.filter((item) => item.rating >= firstNumber(filters.rating))
-      if (filters.campaigns) items = items.filter((item) => filters.campaigns === '1–2' ? item.campaigns <= 2 : item.campaigns >= 3)
-      if (filters.verified) items = items.filter((item) => item.verifiedPayer)
-    }
-    if (type === 'campaign') {
-      if (filters.niche) items = items.filter((item) => item.niche === filters.niche)
-      if (filters.platform) items = items.filter((item) => item.platform.includes(filters.platform))
-      if (filters.open) items = items.filter((item) => item.mode === 'Open')
-      if (filters.goal) items = items.filter((item) => item.goal.toLowerCase().includes(filters.goal.toLowerCase().replace('product launch', 'launch')))
-      if (filters.budget) items = items.filter((item) => { const budget = firstNumber(item.budget); return filters.budget === 'Under ₮5M' ? budget < 5 : filters.budget === '₮5M–₮10M' ? budget >= 5 && budget <= 10 : budget > 10 })
-      if (filters.deadline) items = items.filter((item) => filters.deadline === 'Next 14 days' ? item.deadline.startsWith('Jul') : filters.deadline === 'Next 30 days' ? !item.deadline.startsWith('Sep') : item.deadline.startsWith('Sep'))
-    }
-    if (sort === 'rating') items = [...items].sort((a, b) => (b.rating || b.applications) - (a.rating || a.applications))
-    if (sort === 'newest') items = [...items].sort((a, b) => source.indexOf(b) - source.indexOf(a))
-    if (sort === 'recommended') {
-      const preferences = new Set([...saved, ...following])
-      items = [...items].sort((a, b) => Number(preferences.has(`${type}:${b.id}`)) - Number(preferences.has(`${type}:${a.id}`)))
-    }
-    return items
-  }, [debouncedQuery, filters, following, saved, sort, source, type])
+  const results = remote.items
 
   const info = type === 'creator'
     ? ['Creator search', 'FIND YOUR', 'creative match.', 'Filter by audience quality, creative niche and collaboration fit.']
@@ -166,30 +158,39 @@ function SearchPage({ type, dashboard = false }) {
       ? ['Business search', 'MEET THE', 'right partners.', 'Discover trusted organizations actively investing in thoughtful creator work.']
       : ['Campaign search', 'FIND WORK', 'worth making.', 'Explore live briefs with clear goals, budgets and expectations.']
 
-  const resultGrid = results.length === 0
-    ? <NoResults />
-    : <div className={type === 'campaign' ? 'grid gap-5 xl:grid-cols-2 2xl:grid-cols-3' : 'grid gap-5 md:grid-cols-2 xl:grid-cols-3'}>{results.map((item) => type === 'creator' ? <CreatorCard key={item.id} creator={item} /> : type === 'business' ? <BusinessCard key={item.id} business={item} /> : <CampaignCard key={item.id} campaign={item} />)}</div>
+  const resultGrid = remote.loading
+    ? <p className="py-16 text-center text-sm text-white/40">Loading results…</p>
+    : remote.error && results.length === 0
+      ? <NoResults text={remote.error} />
+    : results.length === 0
+      ? <NoResults />
+      : <><div className={type === 'business' ? 'grid gap-5 md:grid-cols-2 xl:grid-cols-3' : 'marketplace-compact-result-grid grid gap-3'}>{results.map((item) => type === 'creator' ? <CreatorCard key={item.id} creator={item} compact /> : type === 'business' ? <BusinessCard key={item.id} business={item} /> : <CampaignCard key={item.id} campaign={item} compact onAction={dashboard ? setWorkRequestCampaign : undefined} actionLabel={dashboard ? 'Send work request' : 'View campaign'} />)}</div>{remote.nextCursor && <div ref={loadMoreRef} className="grid min-h-20 place-items-center" aria-live="polite"><span className="text-xs text-white/35">{remote.loadingMore ? 'Loading more…' : 'Scroll for more'}</span></div>}</>
 
   if (dashboard) {
     return <DashboardPage>
       <DashboardHeader eyebrow="Creator opportunities" title="Discover campaigns" copy="Search public briefs, refine the list with compact filters, then open the campaigns that fit your channel." />
-      <div className="sticky top-[68px] z-30 mb-5 rounded-[1.4rem] border border-white/10 bg-[#101010]/95 p-2 shadow-[0_18px_60px_rgba(0,0,0,.28)] backdrop-blur-xl sm:top-[76px]">
-        <SearchBar compact value={query} onChange={setQuery} placeholder="Search campaigns" count={results.length} sort={sort} setSort={setSort} onMobileFilters={() => setDrawer(true)} />
-        <FilterSidebar compact horizontal type={type} filters={filters} setFilters={setFilters} className="hidden rounded-xl border-white/[.07] bg-black/15 lg:block" />
-        <ActiveFilters filters={filters} setFilters={setFilters} />
+      <div className="grid items-start gap-3 lg:grid-cols-[12.5rem_minmax(0,1fr)] xl:grid-cols-[13rem_minmax(0,1fr)]">
+        <FilterSidebar compact type={type} filters={filters} setFilters={setFilters} className="sticky top-[88px] hidden h-max border-white/[.07] bg-[#101010]/95 shadow-[0_14px_45px_rgba(0,0,0,.2)] lg:block" />
+        <section className="min-w-0">
+          <div className="sticky top-[76px] z-30 mb-4 rounded-xl border border-white/10 bg-[#101010]/95 p-1.5 shadow-[0_14px_45px_rgba(0,0,0,.24)] backdrop-blur-xl">
+            <SearchBar compact type={type} value={query} onChange={setQuery} placeholder="Search campaigns" count={results.length} sort={sort} setSort={setSort} onMobileFilters={() => setDrawer(true)} />
+            <ActiveFilters filters={filters} setFilters={setFilters} />
+          </div>
+          {resultGrid}
+        </section>
       </div>
-      {resultGrid}
       <Drawer open={drawer} onClose={() => setDrawer(false)} title="Campaign filters"><FilterSidebar type={type} filters={filters} setFilters={setFilters} className="border-0 bg-transparent p-0" /></Drawer>
+      {workRequestCampaign && <ProposalDialog open onClose={() => setWorkRequestCampaign(null)} campaign={workRequestCampaign} />}
     </DashboardPage>
   }
 
   return <main>
-    <SearchHero info={info} type={type} />
+    <SearchHero info={info} type={type} canBrowseCampaigns={hasRole('creator')} />
     <div className="mx-auto max-w-[1500px] px-5 py-8 lg:px-8">
       <div className="grid items-start gap-6 lg:grid-cols-[16rem_minmax(0,1fr)]">
         <FilterSidebar type={type} filters={filters} setFilters={setFilters} className="sticky top-24 hidden h-max lg:block" />
         <section className="min-w-0">
-          <SearchBar value={query} onChange={setQuery} placeholder={`Search ${type}s`} count={results.length} sort={sort} setSort={setSort} onMobileFilters={() => setDrawer(true)} />
+          <SearchBar type={type} value={query} onChange={setQuery} placeholder={`Search ${type}s`} count={results.length} sort={sort} setSort={setSort} onMobileFilters={() => setDrawer(true)} />
           <ActiveFilters filters={filters} setFilters={setFilters} />
           {resultGrid}
         </section>
@@ -200,32 +201,33 @@ function SearchPage({ type, dashboard = false }) {
 }
 
 export function GlobalSearchPage() {
+  const { hasRole } = useAuth()
+  const canBrowseCampaigns = hasRole('creator')
   const [params, setParams] = useSearchParams()
   const [query, setQuery] = useState(params.get('q') || '')
   const [activeGroup, setActiveGroup] = useState('All')
   const [remote, setRemote] = useState(null)
   const debouncedQuery = useDebouncedValue(query)
   useEffect(() => {
-    let active = true
-    marketplaceApi.search({ type: 'all', q: debouncedQuery, limit: 12 })
+    const controller = new AbortController()
+    marketplaceApi.search({ type: 'all', q: debouncedQuery, limit: 12 }, { signal: controller.signal })
       .then((result) => {
-        if (active) setRemote({
+        setRemote({
           creators: result.creators?.items?.map(toCreatorCard) || [],
           businesses: result.businesses?.items?.map(toBusinessCard) || [],
           campaigns: result.campaigns?.items?.map(toCampaignCard) || [],
           showcase: result.showcase?.items?.map(toShowcaseCard) || [],
         })
       })
-      .catch(() => {})
-    return () => { active = false }
+      .catch((error) => { if (error.code !== 'ERR_CANCELED') setRemote({ creators: [], businesses: [], campaigns: [], showcase: [] }) })
+    return () => controller.abort()
   }, [debouncedQuery])
-  const term = debouncedQuery.trim().toLowerCase()
-  const matches = (item) => !term || JSON.stringify(item).toLowerCase().includes(term)
+  const loading = remote === null
   const groups = [
-    ['Creators', remote ? remote.creators : creators.filter(matches), (item) => <CreatorCard key={item.id} creator={item} compact />],
-    ['Businesses', remote ? remote.businesses : businesses.filter(matches), (item) => <BusinessCard key={item.id} business={item} />],
-    ['Campaigns', remote ? remote.campaigns : campaigns.filter(matches), (item) => <CampaignCard key={item.id} campaign={item} />],
-    ['Showcase', remote ? remote.showcase : showcases.filter(matches), (item) => <ShowcaseCard key={item.id} item={item} />],
+    ['Creators', remote?.creators || [], (item) => <CreatorCard key={item.id} creator={item} compact />],
+    ['Businesses', remote?.businesses || [], (item) => <BusinessCard key={item.id} business={item} />],
+    ...(canBrowseCampaigns ? [['Campaigns', remote?.campaigns || [], (item) => <CampaignCard key={item.id} campaign={item} />]] : []),
+    ['Showcase', remote?.showcase || [], (item) => <ShowcaseCard key={item.id} item={item} />],
   ]
   const visibleGroups = activeGroup === 'All' ? groups : groups.filter(([title]) => title === activeGroup)
   const visibleCount = visibleGroups.reduce((total, [, items]) => total + items.length, 0)
@@ -233,13 +235,13 @@ export function GlobalSearchPage() {
     setQuery(value)
     setParams(value.trim() ? { q: value.trim() } : {}, { replace: true })
   }
-  const globalInfo = ['Global marketplace search', 'SEARCH THE', 'whole network.', 'Creators, businesses, campaigns and completed work in one useful result page.']
+  const globalInfo = ['Global marketplace search', 'SEARCH THE', 'whole network.', canBrowseCampaigns ? 'Creators, businesses, campaigns and completed work in one useful result page.' : 'Creators, businesses and published work in one useful result page.']
   return <main>
     <SearchHero info={globalInfo} global />
     <div className="mx-auto max-w-[1500px] px-5 py-8 lg:px-8">
       <section className="sticky top-[84px] z-30 mb-10 rounded-[1.35rem] border border-white/10 bg-[#101010]/95 p-2.5 shadow-[0_18px_60px_rgba(0,0,0,.3)] backdrop-blur-xl">
         <div className="relative">
-          <Input aria-label="Search the marketplace" value={query} onChange={(event) => change(event.target.value)} placeholder="Search creators, businesses, campaigns and work..." className="[&_input]:min-h-12 [&_input]:border-transparent [&_input]:bg-white/[.035] [&_input]:pr-12 [&_input]:text-sm" />
+          <Input aria-label="Search the marketplace" value={query} onChange={(event) => change(event.target.value)} placeholder={canBrowseCampaigns ? 'Search creators, businesses, campaigns and work...' : 'Search creators, businesses and work...'} className="[&_input]:min-h-12 [&_input]:border-transparent [&_input]:bg-white/[.035] [&_input]:pr-12 [&_input]:text-sm" />
           <Search aria-hidden="true" className="pointer-events-none absolute right-4 top-1/2 -translate-y-1/2 text-white/40" size={18} />
         </div>
         <div className="mt-2 flex flex-col justify-between gap-2 border-t border-white/[.07] pt-2 sm:flex-row sm:items-center">
@@ -249,10 +251,13 @@ export function GlobalSearchPage() {
           <p aria-live="polite" className="shrink-0 px-2 text-[10px] font-bold uppercase tracking-[.1em] text-white/35">{visibleCount} matching results</p>
         </div>
       </section>
-      {visibleCount ? <div className="space-y-14">{visibleGroups.filter(([, items]) => items.length).map(([title, items, render]) => <section key={title}><SectionHeader eyebrow={`${items.length} matches`} title={title} /><div className={title === 'Showcase' ? 'columns-1 gap-5 md:columns-2 xl:columns-3' : 'grid gap-5 md:grid-cols-2 xl:grid-cols-3'}>{items.map(render)}</div></section>)}</div> : <NoResults text={activeGroup === 'All' ? 'No creators, businesses, campaigns or showcase work match this search.' : `No ${activeGroup.toLowerCase()} match this search.`} />}</div>
+      {loading ? <p className="py-16 text-center text-sm text-white/40">Searching…</p> : visibleCount ? <div className="space-y-14">{visibleGroups.filter(([, items]) => items.length).map(([title, items, render]) => <section key={title}><SectionHeader eyebrow={`${items.length} matches`} title={title} /><div className={title === 'Showcase' ? 'columns-1 gap-5 md:columns-2 xl:columns-3' : 'grid gap-5 md:grid-cols-2 xl:grid-cols-3'}>{items.map(render)}</div></section>)}</div> : <NoResults text={activeGroup === 'All' ? 'No creators, businesses or showcase work match this search.' : `No ${activeGroup.toLowerCase()} match this search.`} />}</div>
   </main>
 }
 
 export function CreatorSearchPage() { return <SearchPage type="creator" /> }
 export function BusinessSearchPage() { return <SearchPage type="business" /> }
-export function CampaignSearchPage({ dashboard = false }) { return <SearchPage type="campaign" dashboard={dashboard} /> }
+export function CampaignSearchPage({ dashboard = false }) {
+  const { hasRole } = useAuth()
+  return hasRole('creator') ? <SearchPage type="campaign" dashboard={dashboard} /> : <Navigate to="/showcase" replace />
+}

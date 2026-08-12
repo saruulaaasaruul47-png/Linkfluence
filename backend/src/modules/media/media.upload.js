@@ -10,6 +10,11 @@ const allowedMimeTypes = new Set([
   'video/mp4',
   'video/quicktime',
   'video/webm',
+  'audio/mpeg',
+  'audio/wav',
+  'audio/x-wav',
+  'audio/ogg',
+  'application/pdf',
 ]);
 
 export const mediaUpload = multer({
@@ -22,7 +27,7 @@ export const mediaUpload = multer({
   fileFilter(_req, file, callback) {
     if (!allowedMimeTypes.has(file.mimetype)) {
       callback(new AppError(
-        'Upload a JPG, PNG, GIF, WEBP, MP4, MOV, or WEBM file.',
+        'Upload a JPG, PNG, GIF, WEBP, MP4, MOV, WEBM, MP3, WAV, OGG, or PDF file.',
         400,
         'UNSUPPORTED_MEDIA_TYPE',
       ));

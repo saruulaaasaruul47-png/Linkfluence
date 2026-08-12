@@ -27,10 +27,43 @@ const schema = z.object({
   OTP_RESEND_COOLDOWN_SECONDS: z.coerce.number().int().min(1).max(3600).default(60),
   MEDIA_MAX_IMAGE_BYTES: z.coerce.number().int().min(1024).default(8 * 1024 * 1024),
   MEDIA_MAX_VIDEO_BYTES: z.coerce.number().int().min(1024).default(25 * 1024 * 1024),
+  MEDIA_MAX_DOCUMENT_BYTES: z.coerce.number().int().min(1024).default(15 * 1024 * 1024),
+  MEDIA_MAX_AUDIO_BYTES: z.coerce.number().int().min(1024).default(12 * 1024 * 1024),
   RESEND_API_KEY: z.string().optional().default(''),
-  RESEND_FROM_EMAIL: z.string().min(3).default('Influence Hub <noreply@example.com>'),
-  PAYMENT_PROVIDER: z.enum(['mock']).default('mock'),
+  RESEND_FROM_EMAIL: z.string().min(3).default('Influence Hub <onboarding@resend.dev>'),
+  GOOGLE_CLIENT_ID: z.string().optional().default(''),
+  PAYMENT_PROVIDER: z.enum(['mock', 'qpay', 'stripe']).default('mock'),
   PAYMENT_WEBHOOK_SECRET: z.string().min(32).default('local-payment-webhook-secret-change-me'),
+  PAYMENT_COMMISSION_PERCENT: z.coerce.number().min(0).max(100).default(10),
+  PAYOUT_MINIMUM_AMOUNT: z.coerce.number().positive().default(50000),
+  DELIVERABLE_AUTO_APPROVAL_DAYS: z.coerce.number().int().min(1).max(30).default(7),
+  PAYOUT_ACCOUNT_ENCRYPTION_KEY: z.string().optional().default(''),
+  QPAY_BASE_URL: z.string().url().default('https://merchant-sandbox.qpay.mn'),
+  QPAY_CLIENT_ID: z.string().optional().default(''),
+  QPAY_CLIENT_SECRET: z.string().optional().default(''),
+  QPAY_INVOICE_CODE: z.string().optional().default(''),
+  QPAY_CALLBACK_TOKEN: z.string().optional().default(''),
+  STRIPE_SECRET_KEY: z.string().optional().default(''),
+  STRIPE_WEBHOOK_SECRET: z.string().optional().default(''),
+  API_PUBLIC_URL: z.string().url().default('http://localhost:3000'),
+  SOCIAL_PROVIDER_MODE: z.enum(['sandbox', 'meta']).default('sandbox'),
+  SOCIAL_TOKEN_ENCRYPTION_KEY: z.string().optional().default(''),
+  SOCIAL_SYNC_STALE_HOURS: z.coerce.number().int().min(1).max(168).default(24),
+  META_APP_ID: z.string().optional().default(''),
+  META_APP_SECRET: z.string().optional().default(''),
+  META_GRAPH_VERSION: z.string().regex(/^v\d+\.\d+$/).default('v23.0'),
+  META_REDIRECT_URI: z.string().url().optional(),
+  META_INSTAGRAM_REDIRECT_URI: z.string().url().optional(),
+  META_FACEBOOK_REDIRECT_URI: z.string().url().optional(),
+  META_WEBHOOK_VERIFY_TOKEN: z.string().optional().default(''),
+  RABBITMQ_URL: z.string().url().optional(),
+  REDIS_URL: z.string().url().optional(),
+  QUEUE_MAX_ATTEMPTS: z.coerce.number().int().min(1).max(20).default(5),
+  QUEUE_RETRY_BASE_MS: z.coerce.number().int().min(10).max(60000).default(1000),
+  OUTBOX_POLL_MS: z.coerce.number().int().min(100).max(60000).default(1000),
+  MEDIA_SIGNING_SECRET: z.string().min(32).optional(),
+  MEDIA_SIGNED_URL_TTL_SECONDS: z.coerce.number().int().min(30).max(3600).default(300),
+  SLOW_REQUEST_THRESHOLD_MS: z.coerce.number().int().min(10).max(60000).default(750),
 });
 
 const result = schema.safeParse(process.env);
@@ -55,11 +88,35 @@ if (result.data.NODE_ENV === 'production') {
     errors.push('JWT_PASSWORD_RESET_SECRET must differ from JWT_ACCESS_SECRET');
   }
   if (!result.data.RESEND_API_KEY) errors.push('RESEND_API_KEY is required');
+  if (!result.data.GOOGLE_CLIENT_ID) errors.push('GOOGLE_CLIENT_ID is required');
   if (result.data.PAYMENT_WEBHOOK_SECRET === 'local-payment-webhook-secret-change-me') {
     errors.push('PAYMENT_WEBHOOK_SECRET must be changed');
   }
+  if (!result.data.PAYOUT_ACCOUNT_ENCRYPTION_KEY) errors.push('PAYOUT_ACCOUNT_ENCRYPTION_KEY is required');
+  if (result.data.PAYMENT_PROVIDER === 'qpay') {
+    if (!result.data.QPAY_CLIENT_ID) errors.push('QPAY_CLIENT_ID is required when PAYMENT_PROVIDER=qpay');
+    if (!result.data.QPAY_CLIENT_SECRET) errors.push('QPAY_CLIENT_SECRET is required when PAYMENT_PROVIDER=qpay');
+    if (!result.data.QPAY_INVOICE_CODE) errors.push('QPAY_INVOICE_CODE is required when PAYMENT_PROVIDER=qpay');
+    if (result.data.QPAY_CALLBACK_TOKEN.length < 32) errors.push('QPAY_CALLBACK_TOKEN must contain at least 32 characters');
+  }
+  if (result.data.PAYMENT_PROVIDER === 'stripe') {
+    if (!result.data.STRIPE_SECRET_KEY.startsWith('sk_')) errors.push('STRIPE_SECRET_KEY is required when PAYMENT_PROVIDER=stripe');
+    if (!result.data.STRIPE_WEBHOOK_SECRET.startsWith('whsec_')) errors.push('STRIPE_WEBHOOK_SECRET is required when PAYMENT_PROVIDER=stripe');
+  }
   if (/example\.com/i.test(result.data.RESEND_FROM_EMAIL)) {
     errors.push('RESEND_FROM_EMAIL must use a configured sender domain');
+  }
+  if (!result.data.SOCIAL_TOKEN_ENCRYPTION_KEY) errors.push('SOCIAL_TOKEN_ENCRYPTION_KEY is required');
+  if (result.data.SOCIAL_PROVIDER_MODE === 'meta') {
+    if (!result.data.META_APP_ID) errors.push('META_APP_ID is required when SOCIAL_PROVIDER_MODE=meta');
+    if (!result.data.META_APP_SECRET) errors.push('META_APP_SECRET is required when SOCIAL_PROVIDER_MODE=meta');
+    if (!result.data.META_REDIRECT_URI
+      && (!result.data.META_INSTAGRAM_REDIRECT_URI || !result.data.META_FACEBOOK_REDIRECT_URI)) {
+      errors.push('Both provider-specific Meta redirect URIs (or META_REDIRECT_URI) are required when SOCIAL_PROVIDER_MODE=meta');
+    }
+    if (result.data.META_WEBHOOK_VERIFY_TOKEN.length < 32) {
+      errors.push('META_WEBHOOK_VERIFY_TOKEN must contain at least 32 characters when SOCIAL_PROVIDER_MODE=meta');
+    }
   }
   if (errors.length) {
     throw new Error(`Invalid production environment configuration: ${errors.join('; ')}`);
@@ -89,8 +146,41 @@ export const env = {
   otpResendCooldownSeconds: result.data.OTP_RESEND_COOLDOWN_SECONDS,
   mediaMaxImageBytes: result.data.MEDIA_MAX_IMAGE_BYTES,
   mediaMaxVideoBytes: result.data.MEDIA_MAX_VIDEO_BYTES,
+  mediaMaxDocumentBytes: result.data.MEDIA_MAX_DOCUMENT_BYTES,
+  mediaMaxAudioBytes: result.data.MEDIA_MAX_AUDIO_BYTES,
   resendApiKey: result.data.RESEND_API_KEY,
   resendFromEmail: result.data.RESEND_FROM_EMAIL,
+  googleClientId: result.data.GOOGLE_CLIENT_ID,
   paymentProvider: result.data.PAYMENT_PROVIDER,
   paymentWebhookSecret: result.data.PAYMENT_WEBHOOK_SECRET,
+  paymentCommissionPercent: result.data.PAYMENT_COMMISSION_PERCENT,
+  payoutMinimumAmount: result.data.PAYOUT_MINIMUM_AMOUNT,
+  deliverableAutoApprovalDays: result.data.DELIVERABLE_AUTO_APPROVAL_DAYS,
+  payoutAccountEncryptionKey: result.data.PAYOUT_ACCOUNT_ENCRYPTION_KEY,
+  qpayBaseUrl: result.data.QPAY_BASE_URL,
+  qpayClientId: result.data.QPAY_CLIENT_ID,
+  qpayClientSecret: result.data.QPAY_CLIENT_SECRET,
+  qpayInvoiceCode: result.data.QPAY_INVOICE_CODE,
+  qpayCallbackToken: result.data.QPAY_CALLBACK_TOKEN,
+  stripeSecretKey: result.data.STRIPE_SECRET_KEY,
+  stripeWebhookSecret: result.data.STRIPE_WEBHOOK_SECRET,
+  apiPublicUrl: result.data.API_PUBLIC_URL,
+  socialProviderMode: result.data.SOCIAL_PROVIDER_MODE,
+  socialTokenEncryptionKey: result.data.SOCIAL_TOKEN_ENCRYPTION_KEY,
+  socialSyncStaleHours: result.data.SOCIAL_SYNC_STALE_HOURS,
+  metaAppId: result.data.META_APP_ID,
+  metaAppSecret: result.data.META_APP_SECRET,
+  metaGraphVersion: result.data.META_GRAPH_VERSION,
+  metaRedirectUri: result.data.META_REDIRECT_URI,
+  metaInstagramRedirectUri: result.data.META_INSTAGRAM_REDIRECT_URI,
+  metaFacebookRedirectUri: result.data.META_FACEBOOK_REDIRECT_URI,
+  metaWebhookVerifyToken: result.data.META_WEBHOOK_VERIFY_TOKEN,
+  rabbitMqUrl: result.data.RABBITMQ_URL,
+  redisUrl: result.data.REDIS_URL,
+  queueMaxAttempts: result.data.QUEUE_MAX_ATTEMPTS,
+  queueRetryBaseMs: result.data.QUEUE_RETRY_BASE_MS,
+  outboxPollMs: result.data.OUTBOX_POLL_MS,
+  mediaSigningSecret: result.data.MEDIA_SIGNING_SECRET || result.data.JWT_ACCESS_SECRET,
+  mediaSignedUrlTtlSeconds: result.data.MEDIA_SIGNED_URL_TTL_SECONDS,
+  slowRequestThresholdMs: result.data.SLOW_REQUEST_THRESHOLD_MS,
 };

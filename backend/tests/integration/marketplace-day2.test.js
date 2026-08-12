@@ -59,7 +59,8 @@ async function upload(token, purpose, filename = 'sample.png') {
     .attach('file', png, { filename, contentType: 'image/png' });
   assert.equal(response.status, 201);
   const asset = response.body.data.asset;
-  uploadedPaths.push(path.resolve(process.cwd(), asset.url.replace(/^\//, '')));
+  const stored = await prisma.mediaAsset.findUnique({ where: { id: asset.id }, select: { storageKey: true } });
+  uploadedPaths.push(path.resolve(process.cwd(), 'uploads', 'media', stored.storageKey));
   return asset;
 }
 
@@ -93,6 +94,13 @@ describe('Day 2 media, portfolio and public marketplace APIs', () => {
     const avatar = await upload(first.token, 'AVATAR', 'avatar.png');
     const cover = await upload(first.token, 'COVER', 'cover.png');
     portfolioAsset = await upload(first.token, 'PORTFOLIO', 'portfolio.png');
+    const privateAsset = await upload(first.token, 'DELIVERABLE', 'private-deliverable.png');
+    assert.equal((await request(app).get(privateAsset.url)).status, 404);
+    assert.equal((await auth(second.token).get(privateAsset.url)).status, 404);
+    const ownerContent = await auth(first.token).get(privateAsset.url);
+    assert.equal(ownerContent.status, 200);
+    assert.match(ownerContent.headers['cache-control'], /private/);
+    assert.equal((await auth(first.token).delete(`/api/v1/media/uploads/${privateAsset.id}`)).status, 200);
 
     const create = await auth(first.token).post('/api/v1/creator/profile').send({
       channelName: 'Day Two Creator',

@@ -2,6 +2,7 @@ import { MARKETPLACE_CATEGORIES } from '../../shared/constants/category.constant
 import { AppError } from '../../shared/errors/AppError.js';
 import { toPublicBusiness, toPublicCreator } from './marketplace.mapper.js';
 import { marketplaceRepository } from './marketplace.repository.js';
+import { getSetting } from '../operations/platform-config.service.js';
 
 const pagination = (page, limit, total) => ({
   page,
@@ -12,31 +13,67 @@ const pagination = (page, limit, total) => ({
   hasPreviousPage: page > 1,
 });
 
+const encodeCursor = (scope, sort, id) => Buffer
+  .from(JSON.stringify({ version: 1, scope, sort, id }), 'utf8')
+  .toString('base64url');
+
+function decodeCursor(value, scope, sort) {
+  if (!value) return null;
+  try {
+    const payload = JSON.parse(Buffer.from(value, 'base64url').toString('utf8'));
+    if (payload.version !== 1 || payload.scope !== scope || payload.sort !== sort || typeof payload.id !== 'string') throw new Error();
+    return payload.id;
+  } catch {
+    throw new AppError('The pagination cursor is invalid or belongs to another result order.', 400, 'INVALID_CURSOR');
+  }
+}
+
+function assertRanges(filters) {
+  const ranges = [
+    ['minPrice', 'maxPrice', 'Minimum price cannot exceed maximum price.'],
+    ['minFollowers', 'maxFollowers', 'Minimum followers cannot exceed maximum followers.'],
+    ['minEngagement', 'maxEngagement', 'Minimum engagement cannot exceed maximum engagement.'],
+  ];
+  for (const [minimum, maximum, message] of ranges) {
+    if (filters[minimum] !== undefined && filters[maximum] !== undefined && filters[minimum] > filters[maximum]) {
+      throw new AppError(message, 400, 'INVALID_FILTER_RANGE');
+    }
+  }
+}
+
 export const marketplaceService = {
   async listCreators(filters) {
-    if (filters.minPrice !== undefined
-      && filters.maxPrice !== undefined
-      && filters.minPrice > filters.maxPrice) {
-      throw new AppError('Minimum price cannot exceed maximum price.', 400, 'INVALID_PRICE_RANGE');
-    }
-    const result = await marketplaceRepository.listCreators(filters);
+    assertRanges(filters);
+    const normalized = { ...filters, cursorId: decodeCursor(filters.cursor, 'creators', filters.sort) };
+    const result = await marketplaceRepository.listCreators(normalized);
+    if (!result.cursorFound) throw new AppError('The pagination cursor no longer exists in this result set.', 400, 'INVALID_CURSOR');
+    const last = result.items.at(-1);
+    const pageInfo = pagination(filters.page, filters.limit, result.total);
+    const publicPricing = await getSetting('publicPricing');
     return {
-      items: result.items.map(toPublicCreator),
-      pagination: pagination(filters.page, filters.limit, result.total),
+      items: result.items.map(toPublicCreator).map((item) => publicPricing ? item : { ...item, publicRates: false, startingRate: null, rates: null }),
+      pagination: { ...pageInfo, hasNextPage: result.hasMore, hasPreviousPage: Boolean(filters.cursor) || pageInfo.hasPreviousPage },
+      nextCursor: result.hasMore && last ? encodeCursor('creators', filters.sort, last.id) : null,
     };
   },
 
   async getCreator(identifier) {
     const creator = await marketplaceRepository.findCreator(identifier);
     if (!creator) throw new AppError('Creator profile was not found.', 404, 'CREATOR_NOT_FOUND');
-    return toPublicCreator(creator);
+    const mapped = toPublicCreator(creator);
+    return await getSetting('publicPricing') ? mapped : { ...mapped, publicRates: false, startingRate: null, rates: null };
   },
 
   async listBusinesses(filters) {
-    const result = await marketplaceRepository.listBusinesses(filters);
+    const normalized = { ...filters, cursorId: decodeCursor(filters.cursor, 'businesses', filters.sort) };
+    const result = await marketplaceRepository.listBusinesses(normalized);
+    if (!result.cursorFound) throw new AppError('The pagination cursor no longer exists in this result set.', 400, 'INVALID_CURSOR');
+    const last = result.items.at(-1);
+    const pageInfo = pagination(filters.page, filters.limit, result.total);
     return {
       items: result.items.map(toPublicBusiness),
-      pagination: pagination(filters.page, filters.limit, result.total),
+      pagination: { ...pageInfo, hasNextPage: result.hasMore, hasPreviousPage: Boolean(filters.cursor) || pageInfo.hasPreviousPage },
+      nextCursor: result.hasMore && last ? encodeCursor('businesses', filters.sort, last.id) : null,
     };
   },
 
@@ -58,6 +95,16 @@ export const marketplaceService = {
       id: name.toLowerCase().replace(/\s+/g, '-'),
       name,
       creatorCount: counts.get(name),
+    }));
+  },
+
+  async recentlyViewed(userId, limit = 8) {
+    const rows = await marketplaceRepository.recentTargets(userId, limit);
+    return rows.map((item) => ({
+      key: `${item.targetType.toLowerCase()}:${item.targetId}`,
+      targetType: item.targetType,
+      targetId: item.targetId,
+      viewedAt: item.viewedAt,
     }));
   },
 };

@@ -1,0 +1,11 @@
+import { Router } from 'express';
+import { validate } from '../../shared/middleware/validate.js';
+import { authenticate } from '../auth/public.js';
+import { analyticsController } from './analytics.controller.js';
+import { analyticsQuerySchema, campaignReportSchema, trackEventSchema } from './analytics.schema.js';
+export const analyticsRouter = Router();
+analyticsRouter.use(authenticate);
+analyticsRouter.get('/summary', validate(analyticsQuerySchema), analyticsController.summary);
+analyticsRouter.get('/campaigns/:campaignId/report', validate(campaignReportSchema), analyticsController.campaignReport);
+analyticsRouter.get('/campaigns/:campaignId/report.pdf', validate(campaignReportSchema), analyticsController.campaignReportPdf);
+analyticsRouter.post('/events', validate(trackEventSchema), analyticsController.track);

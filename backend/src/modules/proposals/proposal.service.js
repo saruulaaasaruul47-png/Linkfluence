@@ -1,4 +1,5 @@
 import { AppError } from '../../shared/errors/AppError.js';
+import { bootstrapCollaboration } from '../collaborations/collaboration-bootstrap.service.js';
 import { toProposal } from './proposal.mapper.js';
 import { proposalRepository } from './proposal.repository.js';
 
@@ -99,6 +100,7 @@ export const proposalService = {
       id,
       version || proposal.version,
       { ...changes, status: 'SUBMITTED', counterAmount: null, counterMessage: null },
+      { topic: 'proposal.updated', actorId: userId },
     );
     if (!updated) throw versionConflict();
     return toProposal(updated);
@@ -116,6 +118,7 @@ export const proposalService = {
       id,
       proposal.version,
       { status: 'WITHDRAWN' },
+      { topic: 'proposal.withdrawn', actorId: userId },
     );
     if (!updated) throw versionConflict();
     return toProposal(updated);
@@ -156,13 +159,34 @@ export const proposalService = {
     if (!transition.from.includes(proposal.status)) {
       throw new AppError('This proposal decision is not allowed.', 409, 'INVALID_PROPOSAL_TRANSITION');
     }
+    const orchestration = payload.action === 'ACCEPT'
+      ? (tx) => bootstrapCollaboration(tx, {
+          sourceType: 'PROPOSAL',
+          sourceId: proposal.id,
+          actorId: userId,
+          businessId: proposal.campaign.business.id,
+          businessUserId: proposal.campaign.business.userId,
+          creatorId: proposal.creator.id,
+          creatorUserId: proposal.creator.userId,
+          campaignId: proposal.campaign.id,
+          title: proposal.campaign.title,
+          contentType: proposal.campaign.platforms?.join(', ') || 'Campaign collaboration',
+          deliverables: proposal.deliverables || proposal.campaign.deliverables,
+          budget: proposal.counterAmount || proposal.amount || proposal.campaign.budgetMax || proposal.campaign.budgetMin || 0,
+          currency: proposal.currency || proposal.campaign.currency,
+          timeline: proposal.timeline || (proposal.campaign.deadline ? `Due ${proposal.campaign.deadline.toISOString()}` : null),
+          publishBy: proposal.campaign.deadline,
+          message: proposal.message,
+        })
+      : null;
     const updated = await proposalRepository.decide(
       proposal,
       payload.version || proposal.version,
       transition.data,
       transition.shortlist,
+      orchestration,
     );
     if (!updated) throw versionConflict();
-    return toProposal(updated);
+    return { ...toProposal(updated.record), workspaceId: updated.workspaceId };
   },
 };

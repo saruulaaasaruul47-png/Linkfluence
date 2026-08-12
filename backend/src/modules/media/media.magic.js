@@ -9,9 +9,17 @@ export function detectMedia(buffer) {
     || buffer.subarray(0, 6).toString('ascii') === 'GIF89a') {
     return { mimeType: 'image/gif', extension: 'gif', kind: 'IMAGE' };
   }
-  if (buffer.subarray(0, 4).toString('ascii') === 'RIFF'
-    && buffer.subarray(8, 12).toString('ascii') === 'WEBP') {
-    return { mimeType: 'image/webp', extension: 'webp', kind: 'IMAGE' };
+  if (buffer.subarray(0, 4).toString('ascii') === 'RIFF') {
+    const riffKind = buffer.subarray(8, 12).toString('ascii');
+    if (riffKind === 'WEBP') return { mimeType: 'image/webp', extension: 'webp', kind: 'IMAGE' };
+    if (riffKind === 'WAVE') return { mimeType: 'audio/wav', extension: 'wav', kind: 'AUDIO' };
+  }
+  if (buffer.subarray(0, 3).toString('ascii') === 'ID3'
+    || (buffer[0] === 0xff && (buffer[1] & 0xe0) === 0xe0)) {
+    return { mimeType: 'audio/mpeg', extension: 'mp3', kind: 'AUDIO' };
+  }
+  if (buffer.subarray(0, 4).toString('ascii') === 'OggS') {
+    return { mimeType: 'audio/ogg', extension: 'ogg', kind: 'AUDIO' };
   }
   const box = buffer.subarray(4, 12).toString('ascii');
   if (/^ftyp/.test(box) || box.includes('ftyp')) {
@@ -19,6 +27,9 @@ export function detectMedia(buffer) {
   }
   if (buffer.subarray(0, 4).toString('hex') === '1a45dfa3') {
     return { mimeType: 'video/webm', extension: 'webm', kind: 'VIDEO' };
+  }
+  if (startsWith(buffer, [0x25, 0x50, 0x44, 0x46])) {
+    return { mimeType: 'application/pdf', extension: 'pdf', kind: 'DOCUMENT' };
   }
   return null;
 }

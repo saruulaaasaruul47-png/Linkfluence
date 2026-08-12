@@ -1,21 +1,27 @@
-import { useCallback, useEffect, useMemo, useState } from 'react'
+import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import {
   collaborationApi,
   contractApi,
   offerApi,
 } from '../api/collaboration.api'
 import { mediaApi } from '../api/media.api'
+import { notificationApi } from '../api/dashboard.api'
+import { createRealtimeClient } from '../api/realtime'
 import { useAuth } from './auth-context'
 import { CollaborationContext } from './collaboration-context'
 
 const uniqueById = (items) => [...new Map(items.filter(Boolean).map((item) => [item.id, item])).values()]
 const unwrapError = (error) => {
-  const message = error?.response?.data?.error?.message
+  const backendError = error?.response?.data?.error
+  const detail = backendError?.details && Object.values(backendError.details).find(Boolean)
+  const baseMessage = backendError?.message
     || error?.response?.data?.message
     || error?.message
     || 'That action could not be completed.'
+  const message = detail && detail !== baseMessage ? `${baseMessage} ${detail}` : baseMessage
   if (error instanceof Error) {
     error.message = message
+    error.details = backendError?.details || null
     return error
   }
   return new Error(message)
@@ -33,6 +39,13 @@ export function CollaborationProvider({ children }) {
   const [notifications, setNotifications] = useState([])
   const [offerComposerCreator, setOfferComposerCreator] = useState(null)
   const [isLoading, setIsLoading] = useState(true)
+  const [dataOwnerId, setDataOwnerId] = useState(null)
+  const dataOwnerRef = useRef(null)
+  const reloadVersion = useRef(0)
+  const activeUserIdRef = useRef(user?.id || null)
+  useEffect(() => {
+    activeUserIdRef.current = user?.id || null
+  }, [user?.id])
 
   const sides = useMemo(() => {
     const roles = user?.roles || []
@@ -43,35 +56,56 @@ export function CollaborationProvider({ children }) {
   }, [user?.roles])
 
   const runApi = useCallback(async (operation) => {
+    const requestUserId = activeUserIdRef.current
     try {
-      return await operation()
+      const result = await operation()
+      if (requestUserId !== activeUserIdRef.current) {
+        throw new Error('Your active account changed before this action completed.')
+      }
+      return result
     } catch (error) {
       throw unwrapError(error)
     }
   }, [])
 
   const reload = useCallback(async () => {
+    const version = ++reloadVersion.current
+    const requestUserId = user?.id || null
     if (!isAuthenticated || sides.length === 0) {
       setOffers([])
       setWorkspaces([])
+      setNotifications([])
+      dataOwnerRef.current = null
+      setDataOwnerId(null)
       setIsLoading(false)
       return
     }
+    if (dataOwnerRef.current !== requestUserId) {
+      setOffers([])
+      setWorkspaces([])
+      setNotifications([])
+      dataOwnerRef.current = null
+      setDataOwnerId(null)
+    }
     setIsLoading(true)
     try {
-      const [offerResults, collaborationResults] = await Promise.all([
+      const [offerResults, collaborationResults, notificationResult] = await Promise.all([
         Promise.all(sides.map((side) => offerApi.list(side, { limit: 50 }))),
         Promise.all(sides.map((side) => collaborationApi.list(side, { limit: 50 }))),
+        notificationApi.list({ limit: 100 }),
       ])
+      if (version !== reloadVersion.current) return
       setOffers(uniqueById(offerResults.flatMap((result) => result?.items || [])))
       setWorkspaces(uniqueById(collaborationResults.flatMap((result) => result?.items || [])))
+      setNotifications(notificationResult?.items || [])
+      dataOwnerRef.current = requestUserId
+      setDataOwnerId(requestUserId)
     } catch (error) {
-      // Protected pages surface their own empty/error UI. Keep the last valid snapshot.
-      console.error(unwrapError(error))
+      if (version === reloadVersion.current) console.error(unwrapError(error))
     } finally {
-      setIsLoading(false)
+      if (version === reloadVersion.current) setIsLoading(false)
     }
-  }, [isAuthenticated, sides])
+  }, [isAuthenticated, sides, user?.id])
 
   useEffect(() => {
     if (isInitializing) return undefined
@@ -81,8 +115,21 @@ export function CollaborationProvider({ children }) {
     })
     return () => {
       active = false
+      reloadVersion.current += 1
     }
   }, [isInitializing, reload])
+
+  useEffect(() => {
+    if (isInitializing || !isAuthenticated) return undefined
+    const socketUserId = user?.id
+    const socket = createRealtimeClient()
+    socket.on('notification:created', (notification) => {
+      if (!notification?.id || socketUserId !== activeUserIdRef.current) return
+      setNotifications((current) => uniqueById([{ ...notification, unread: true }, ...current]))
+    })
+    socket.connect()
+    return () => socket.disconnect()
+  }, [isAuthenticated, isInitializing, user?.id])
 
   const refreshWorkspace = useCallback(async (id) => {
     const result = await runApi(() => collaborationApi.get(id))
@@ -108,6 +155,8 @@ export function CollaborationProvider({ children }) {
       title: details.title.trim(),
       contentType: details.contentType.trim(),
       budget: moneyNumber(details.budget),
+      paymentType: details.paymentType || 'PAID',
+      ...(['BARTER', 'HYBRID'].includes(details.paymentType) && { barterDetails: details.barterDetails }),
       currency: 'MNT',
       timeline: details.timeline.trim(),
       message: details.message.trim(),
@@ -228,13 +277,35 @@ export function CollaborationProvider({ children }) {
   }
 
   const fundWorkspace = async (id) => {
-    await runApi(() => collaborationApi.createFundingIntent(id, { autoConfirm: true }))
-    return refreshWorkspace(id)
+    const result = await runApi(() => collaborationApi.fundFromWallet(id, {
+      paymentMethod: 'WALLET',
+      idempotencyKey: globalThis.crypto?.randomUUID?.() || `wallet-${Date.now()}`,
+    }))
+    await refreshWorkspace(id)
+    return result
   }
 
   const toggleTask = async (id, taskId) => {
     await runApi(() => collaborationApi.toggleTask(id, taskId))
     return refreshWorkspace(id)
+  }
+
+  const createTask = async (id, payload) => {
+    const result = await runApi(() => collaborationApi.createTask(id, payload))
+    if (result?.collaboration) setWorkspaces((current) => uniqueById([result.collaboration, ...current.filter((item) => item.id !== id)]))
+    return result?.task
+  }
+
+  const updateTask = async (id, taskId, payload) => {
+    const result = await runApi(() => collaborationApi.updateTask(id, taskId, payload))
+    if (result?.collaboration) setWorkspaces((current) => uniqueById([result.collaboration, ...current.filter((item) => item.id !== id)]))
+    return result?.task
+  }
+
+  const deleteTask = async (id, taskId, version) => {
+    const result = await runApi(() => collaborationApi.deleteTask(id, taskId, version))
+    if (result?.collaboration) setWorkspaces((current) => uniqueById([result.collaboration, ...current.filter((item) => item.id !== id)]))
+    return result?.taskId
   }
 
   const addFile = async (id, file) => {
@@ -243,9 +314,6 @@ export function CollaborationProvider({ children }) {
     await runApi(() => collaborationApi.addFile(id, {
       mediaAssetId: asset.id,
       name: asset.originalName || file.name,
-      url: asset.url,
-      mimeType: asset.mimeType || file.type,
-      sizeBytes: asset.sizeBytes || file.size,
       kind: 'PROJECT',
     }))
     await refreshWorkspace(id)
@@ -275,7 +343,6 @@ export function CollaborationProvider({ children }) {
     const result = await runApi(() => collaborationApi.reviewDeliverable(id, deliverableId, {
       decision,
       note,
-      autoConfirmRelease: decision === 'APPROVED',
     }))
     await refreshWorkspace(id)
     return result
@@ -290,7 +357,24 @@ export function CollaborationProvider({ children }) {
   const publishShowcase = async (id) => {
     const result = await runApi(() => collaborationApi.publishShowcase(id))
     await refreshWorkspace(id)
-    return result?.showcase
+    return result
+  }
+
+  const declineShowcase = async (id) => {
+    const result = await runApi(() => collaborationApi.declineShowcase(id))
+    await refreshWorkspace(id)
+    return result
+  }
+
+  const submitPublishProof = async (id, deliverableId, postUrl, platform, screenshotFile, paidPartnership = false) => {
+    let screenshotId
+    if (screenshotFile) {
+      const uploaded = await runApi(() => mediaApi.upload(screenshotFile, 'DELIVERABLE'))
+      screenshotId = uploaded?.asset?.id
+    }
+    const result = await runApi(() => collaborationApi.submitProof(id, { deliverableId, postUrl, platform, paidPartnership, ...(screenshotId && { screenshotId }) }))
+    await refreshWorkspace(id)
+    return result?.proof
   }
 
   const addActivity = async (id, text) => {
@@ -299,17 +383,20 @@ export function CollaborationProvider({ children }) {
     return refreshWorkspace(id)
   }
 
-  const markNotificationRead = (id) => {
+  const markNotificationRead = async (id) => {
+    await runApi(() => notificationApi.read(id))
     setNotifications((current) => current.map((item) => item.id === id ? { ...item, unread: false } : item))
   }
-  const markAllNotificationsRead = (role) => {
-    setNotifications((current) => current.map((item) => item.role === role ? { ...item, unread: false } : item))
+  const markAllNotificationsRead = async () => {
+    await runApi(() => notificationApi.readAll())
+    setNotifications((current) => current.map((item) => ({ ...item, unread: false })))
   }
 
+  const ownsCurrentData = Boolean(user?.id && dataOwnerId === user.id)
   const value = {
-    offers,
-    workspaces,
-    notifications,
+    offers: ownsCurrentData ? offers : [],
+    workspaces: ownsCurrentData ? workspaces : [],
+    notifications: ownsCurrentData ? notifications : [],
     publishedShowcases: [],
     isLoading,
     offerComposerCreator,
@@ -322,7 +409,7 @@ export function CollaborationProvider({ children }) {
     businessApprove,
     businessRequestChanges,
     businessDecline,
-    getWorkspace: (id) => workspaces.find((workspace) => workspace.id === id),
+    getWorkspace: (id) => ownsCurrentData ? workspaces.find((workspace) => workspace.id === id) : undefined,
     refreshWorkspace,
     updateTerms,
     lockAgreement,
@@ -331,12 +418,17 @@ export function CollaborationProvider({ children }) {
     approveContract,
     requestContractChanges,
     fundWorkspace,
+    createTask,
+    updateTask,
+    deleteTask,
     toggleTask,
     addFile,
     submitDeliverable,
     reviewDeliverable,
     submitReview,
     publishShowcase,
+    declineShowcase,
+    submitPublishProof,
     addActivity,
     markNotificationRead,
     markAllNotificationsRead,

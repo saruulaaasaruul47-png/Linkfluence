@@ -6,7 +6,6 @@ import { toCampaignCard } from '../../api/marketplace.mapper'
 import { Badge, Button, EmptyState } from '../../components/ui'
 import { CampaignCard } from '../../components/marketplace/cards'
 import { SectionHeader } from '../../components/marketplace/MarketplaceLayout'
-import { campaigns } from '../../data/marketplace'
 import { useMarketplace } from '../../context/marketplace-context'
 import { useAuth } from '../../context/auth-context'
 import { ProposalDialog } from '../dashboard/CampaignDashboardPages'
@@ -16,9 +15,10 @@ export default function MarketplaceCampaignPage() {
   const navigate = useNavigate()
   const { requestChannel, markViewed } = useMarketplace()
   const { hasRole } = useAuth()
-  const [campaign, setCampaign] = useState(() => campaigns.find((item) => item.id === id) || null)
-  const [loading, setLoading] = useState(!campaign)
+  const [campaign, setCampaign] = useState(null)
+  const [loading, setLoading] = useState(true)
   const [proposalOpen, setProposalOpen] = useState(false)
+  const [similar, setSimilar] = useState([])
 
   useEffect(() => {
     let active = true
@@ -30,6 +30,14 @@ export default function MarketplaceCampaignPage() {
       .finally(() => {
         if (active) setLoading(false)
       })
+    return () => { active = false }
+  }, [id])
+
+  useEffect(() => {
+    let active = true
+    campaignApi.discover({ limit: 4 })
+      .then((result) => { if (active) setSimilar(result.items.filter((item) => item.id !== id).map(toCampaignCard).slice(0, 3)) })
+      .catch(() => {})
     return () => { active = false }
   }, [id])
 
@@ -45,7 +53,7 @@ export default function MarketplaceCampaignPage() {
 
   return <main onMouseEnter={() => markViewed(`campaign:${campaign.id}`)}>
     <section className="relative min-h-[27rem] overflow-hidden border-b border-white/10">
-      <img src={campaign.image} alt="" decoding="async" className="absolute inset-0 size-full object-cover opacity-55" />
+      <img src={campaign.image} alt="" loading="lazy" decoding="async" className="absolute inset-0 size-full object-cover opacity-55" />
       <div className="absolute inset-0 bg-gradient-to-r from-black via-black/75 to-black/25" />
       <div className="relative mx-auto flex min-h-[27rem] max-w-[1500px] flex-col justify-between px-5 py-10 lg:px-8">
         <button type="button" onClick={() => navigate('/search/campaigns')} className="flex w-max items-center gap-2 text-xs text-white/55 hover:text-white"><ArrowLeft size={14} />Back to campaigns</button>
@@ -77,7 +85,7 @@ export default function MarketplaceCampaignPage() {
           <Button className="mt-6 w-full" onClick={() => hasRole('creator') ? setProposalOpen(true) : requestChannel('Applying to campaigns')}><Send size={15} />Apply to campaign</Button>
         </aside>
       </div>
-      <section className="mt-20"><SectionHeader eyebrow="More opportunities" title="Similar campaigns" /><div className="grid gap-5 xl:grid-cols-3">{campaigns.filter((item) => item.id !== id).slice(0, 3).map((item) => <CampaignCard key={item.id} campaign={item} />)}</div></section>
+      {similar.length > 0 && <section className="mt-20"><SectionHeader eyebrow="More opportunities" title="Similar campaigns" /><div className="grid gap-5 xl:grid-cols-3">{similar.map((item) => <CampaignCard key={item.id} campaign={item} />)}</div></section>}
     </div>
     <ProposalDialog open={proposalOpen} onClose={() => setProposalOpen(false)} campaign={campaign} />
   </main>

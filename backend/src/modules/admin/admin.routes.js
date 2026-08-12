@@ -1,0 +1,44 @@
+import { Router } from 'express';
+import { authorize } from '../../shared/middleware/authorize.js';
+import { validate } from '../../shared/middleware/validate.js';
+import { authenticate } from '../auth/public.js';
+import { adminController } from './admin.controller.js';
+import { adminListSchema, adminRefundSchema, announcementSchema, campaignStatusSchema, caseResolutionSchema, channelVerificationSchema, contentModerationSchema, contractFreezeSchema, createFeatureFlagSchema, disputeAwardSchema, financeDetailSchema, financeListSchema, payoutDecisionSchema, payoutReconcileSchema, proofDecisionSchema, reconciliationRunSchema, updateFeatureFlagSchema, updateSettingsSchema, userStatusSchema } from './admin.schema.js';
+import { FINANCE_PERMISSIONS, requireFinancePermission } from './finance.permissions.js';
+export const adminRouter = Router();
+adminRouter.use(authenticate, authorize('ADMIN'));
+adminRouter.get('/overview', adminController.overview);
+adminRouter.get('/finance/overview', requireFinancePermission(FINANCE_PERMISSIONS.VIEW_FINANCE), adminController.financeOverview);
+adminRouter.get('/finance/transactions', requireFinancePermission(FINANCE_PERMISSIONS.VIEW_TRANSACTIONS), validate(financeListSchema), adminController.financeList('transactions'));
+adminRouter.get('/finance/revenue', requireFinancePermission(FINANCE_PERMISSIONS.VIEW_FINANCE), validate(financeListSchema), adminController.financeList('revenue'));
+adminRouter.get('/finance/payouts', requireFinancePermission(FINANCE_PERMISSIONS.VIEW_FINANCE), validate(financeListSchema), adminController.financeList('payouts'));
+adminRouter.get('/finance/refunds', requireFinancePermission(FINANCE_PERMISSIONS.VIEW_FINANCE), validate(financeListSchema), adminController.financeList('refunds'));
+adminRouter.get('/finance/:resource/:id', (req, res, next) => {
+  const permission = req.params.resource === 'transactions' ? FINANCE_PERMISSIONS.VIEW_TRANSACTIONS : FINANCE_PERMISSIONS.VIEW_FINANCE;
+  return requireFinancePermission(permission)(req, res, next);
+}, validate(financeDetailSchema), adminController.financeDetail);
+for (const resource of ['users', 'channels', 'campaigns', 'contracts', 'offers', 'collaborations', 'content', 'payments', 'refunds', 'payouts', 'ledger', 'revenue', 'barterFees', 'cases', 'reviews', 'audit']) {
+  adminRouter.get(`/${resource}`, validate(adminListSchema), adminController.list(resource));
+}
+adminRouter.get('/settings', adminController.settings);
+adminRouter.patch('/settings', validate(updateSettingsSchema), adminController.updateSettings);
+adminRouter.get('/feature-flags', adminController.featureFlags);
+adminRouter.post('/feature-flags', validate(createFeatureFlagSchema), adminController.createFeatureFlag);
+adminRouter.patch('/feature-flags/:id', validate(updateFeatureFlagSchema), adminController.updateFeatureFlag);
+adminRouter.post('/content/:id/hide', validate(contentModerationSchema), adminController.hideContent);
+adminRouter.post('/content/:id/restore', validate(contentModerationSchema), adminController.restoreContent);
+adminRouter.patch('/users/:id/status', validate(userStatusSchema), adminController.status);
+adminRouter.post('/cases/:id/resolve', validate(caseResolutionSchema), adminController.resolveCase);
+adminRouter.post('/announcements', validate(announcementSchema), adminController.announce);
+adminRouter.patch('/channels/:type/:id/verification', validate(channelVerificationSchema), adminController.verifyChannel);
+adminRouter.patch('/campaigns/:id/status', validate(campaignStatusSchema), adminController.campaignStatus);
+adminRouter.post('/contracts/:id/freeze', validate(contractFreezeSchema), adminController.freezeContract);
+adminRouter.post('/payments/:id/refund', requireFinancePermission(FINANCE_PERMISSIONS.MANAGE_REFUNDS), validate(adminRefundSchema), adminController.refund);
+adminRouter.post('/finance/payments/:id/refund', requireFinancePermission(FINANCE_PERMISSIONS.MANAGE_REFUNDS), validate(adminRefundSchema), adminController.refund);
+adminRouter.patch('/payouts/:id/reconcile', requireFinancePermission(FINANCE_PERMISSIONS.MANAGE_PAYOUTS), validate(payoutReconcileSchema), adminController.reconcilePayout);
+adminRouter.patch('/finance/payouts/:id/reconcile', requireFinancePermission(FINANCE_PERMISSIONS.MANAGE_PAYOUTS), validate(payoutReconcileSchema), adminController.reconcilePayout);
+adminRouter.post('/payouts/:id/decision', requireFinancePermission(FINANCE_PERMISSIONS.MANAGE_PAYOUTS), validate(payoutDecisionSchema), adminController.decidePayout);
+adminRouter.post('/finance/payouts/:id/decision', requireFinancePermission(FINANCE_PERMISSIONS.MANAGE_PAYOUTS), validate(payoutDecisionSchema), adminController.decidePayout);
+adminRouter.post('/reconciliation-runs', requireFinancePermission(FINANCE_PERMISSIONS.MANAGE_PAYOUTS), validate(reconciliationRunSchema), adminController.reconciliationRun);
+adminRouter.post('/proofs/:id/decision', validate(proofDecisionSchema), adminController.decideProof);
+adminRouter.post('/disputes/:id/resolve', validate(disputeAwardSchema), adminController.resolveDispute);

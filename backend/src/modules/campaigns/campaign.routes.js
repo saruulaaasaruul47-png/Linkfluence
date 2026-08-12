@@ -4,6 +4,8 @@ import { validate } from '../../shared/middleware/validate.js';
 import { authenticate, optionalAuthenticate } from '../auth/public.js';
 import { campaignController } from './campaign.controller.js';
 import {
+  addCampaignAttachmentSchema,
+  campaignAttachmentIdSchema,
   campaignIdSchema,
   createCampaignSchema,
   ownerCampaignListSchema,
@@ -25,3 +27,5 @@ businessCampaignRouter.post('/:id/publish', validate(publishCampaignSchema), cam
 businessCampaignRouter.post('/:id/pause', validate(campaignIdSchema), campaignController.pause);
 businessCampaignRouter.post('/:id/archive', validate(campaignIdSchema), campaignController.archive);
 businessCampaignRouter.delete('/:id', validate(campaignIdSchema), campaignController.remove);
+businessCampaignRouter.post('/:id/attachments', validate(addCampaignAttachmentSchema), campaignController.addAttachment);
+businessCampaignRouter.delete('/:id/attachments/:attachmentId', validate(campaignAttachmentIdSchema), campaignController.removeAttachment);

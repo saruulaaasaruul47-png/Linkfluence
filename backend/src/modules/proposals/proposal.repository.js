@@ -58,7 +58,11 @@ export const proposalRepository = {
   },
 
   create(data) {
-    return prisma.proposal.create({ data, include });
+    return prisma.$transaction(async (tx) => {
+      const proposal = await tx.proposal.create({ data, include });
+      await tx.outboxEvent.create({ data: { topic: 'proposal.submitted', aggregateId: proposal.id, payload: { proposalId: proposal.id, campaignId: proposal.campaignId, actorId: proposal.creator.userId } } });
+      return proposal;
+    });
   },
 
   findById(id) {
@@ -103,16 +107,32 @@ export const proposalRepository = {
     return { items, total };
   },
 
-  async updateVersioned(id, expectedVersion, data) {
-    const result = await prisma.proposal.updateMany({
-      where: { id, version: expectedVersion },
-      data: { ...data, version: { increment: 1 } },
+  async updateVersioned(id, expectedVersion, data, event = null) {
+    return prisma.$transaction(async (tx) => {
+      const result = await tx.proposal.updateMany({
+        where: { id, version: expectedVersion },
+        data: { ...data, version: { increment: 1 } },
+      });
+      if (result.count !== 1) return null;
+      const proposal = await tx.proposal.findUnique({ where: { id }, include });
+      if (event) {
+        await tx.outboxEvent.create({
+          data: {
+            topic: event.topic,
+            aggregateId: proposal.id,
+            payload: {
+              proposalId: proposal.id,
+              campaignId: proposal.campaignId,
+              actorId: event.actorId,
+            },
+          },
+        });
+      }
+      return proposal;
     });
-    if (result.count !== 1) return null;
-    return prisma.proposal.findUnique({ where: { id }, include });
   },
 
-  async decide(proposal, expectedVersion, data, shortlist = false) {
+  async decide(proposal, expectedVersion, data, shortlist = false, orchestrate = null) {
     return prisma.$transaction(async (tx) => {
       const result = await tx.proposal.updateMany({
         where: { id: proposal.id, version: expectedVersion },
@@ -137,7 +157,22 @@ export const proposalRepository = {
           update: {},
         });
       }
-      return tx.proposal.findUnique({ where: { id: proposal.id }, include });
+      const workspaceId = orchestrate ? await orchestrate(tx) : null;
+      await tx.outboxEvent.create({
+        data: {
+          topic: `proposal.${String(data.status).toLowerCase()}`,
+          aggregateId: proposal.id,
+          payload: {
+            proposalId: proposal.id,
+            campaignId: proposal.campaignId,
+            actorId: proposal.campaign.business.userId,
+          },
+        },
+      });
+      return {
+        record: await tx.proposal.findUnique({ where: { id: proposal.id }, include }),
+        workspaceId,
+      };
     });
   },
 };

@@ -3,13 +3,30 @@ import { mediaService } from '../media/public.js';
 import { toUserProfile } from '../users/public.js';
 import { toCreatorProfile } from './creator.mapper.js';
 import { creatorRepository } from './creator.repository.js';
+import { assertFeatureEnabled, assertSettingEnabled } from '../operations/platform-config.service.js';
 
 const socialFields = {
   instagram: 'INSTAGRAM',
   facebook: 'FACEBOOK',
   tiktok: 'TIKTOK',
+  youtube: 'YOUTUBE',
   manualLink: 'OTHER',
 };
+
+const availabilityMap = new Map([
+  ['AVAILABLE_NOW', 'AVAILABLE_NOW'],
+  ['Available now', 'AVAILABLE_NOW'],
+  ['AVAILABLE_THIS_MONTH', 'AVAILABLE_THIS_MONTH'],
+  ['Available this month', 'AVAILABLE_THIS_MONTH'],
+  ['LIMITED', 'LIMITED'],
+  ['Limited availability', 'LIMITED'],
+  ['NOT_ACCEPTING', 'NOT_ACCEPTING'],
+  ['Not accepting work', 'NOT_ACCEPTING'],
+]);
+
+function uniqueStrings(values) {
+  return [...new Set((values || []).map((value) => value.trim()).filter(Boolean))];
+}
 
 function parseRate(value) {
   if (value === undefined || value === '') return undefined;
@@ -37,15 +54,21 @@ function buildProfileData(payload, creating = false) {
   if (payload.username !== undefined) data.slug = payload.username;
   if (payload.bio !== undefined) data.bio = payload.bio || null;
   if (payload.location !== undefined) data.location = payload.location || null;
-  if (payload.niche !== undefined) data.categories = payload.niche ? [payload.niche] : [];
-  if (payload.language !== undefined) data.languages = payload.language ? [payload.language] : [];
+  if (payload.categories !== undefined) data.categories = uniqueStrings(payload.categories);
+  else if (payload.niche !== undefined) data.categories = payload.niche ? [payload.niche] : [];
+  if (payload.skills !== undefined) data.skills = uniqueStrings(payload.skills);
+  if (payload.languages !== undefined) data.languages = uniqueStrings(payload.languages);
+  else if (payload.language !== undefined) data.languages = payload.language ? [payload.language] : [];
   if (payload.audience !== undefined) data.audienceDescription = payload.audience || null;
   if (payload.format !== undefined) data.contentFormat = payload.format || null;
   if (payload.publicRates !== undefined) data.publicRates = payload.publicRates;
+  if (payload.currency !== undefined) data.currency = payload.currency;
   if (payload.availability !== undefined) {
-    data.availability = payload.availability || null;
-    data.availableForWork = !/not accepting|unavailable/i.test(payload.availability);
+    data.availability = availabilityMap.get(payload.availability);
+    data.availableForWork = data.availability !== 'NOT_ACCEPTING';
   }
+  if (payload.availableForWork !== undefined) data.availableForWork = payload.availableForWork;
+  if (data.availability === 'NOT_ACCEPTING') data.availableForWork = false;
   if (payload.avatar !== undefined) data.avatarUrl = payload.avatar || null;
   if (payload.cover !== undefined) data.coverUrl = payload.cover || null;
 
@@ -55,7 +78,8 @@ function buildProfileData(payload, creating = false) {
       rateKeys.map((key) => [key, parseRate(payload[key])]).filter(([, value]) => value !== undefined),
     );
   }
-  if ('rate' in payload) data.startingRate = parseRate(payload.rate) ?? null;
+  if ('startingRate' in payload) data.startingRate = parseRate(payload.startingRate) ?? null;
+  else if ('rate' in payload) data.startingRate = parseRate(payload.rate) ?? null;
   else if (creating) {
     data.startingRate = parseRate(payload.reelRate)
       ?? parseRate(payload.postRate)
@@ -114,6 +138,8 @@ async function initialPortfolioItem(userId, payload) {
 
 export const creatorService = {
   async create(userId, payload) {
+    await assertSettingEnabled('creatorApplications', 'CREATOR_APPLICATIONS_CLOSED', 'Creator applications are temporarily closed.');
+    await assertFeatureEnabled('creator_onboarding', { id: userId, roles: ['VIEWER'] });
     if (await creatorRepository.findByUserId(userId)) {
       throw new AppError('A creator profile already exists.', 409, 'CREATOR_PROFILE_EXISTS');
     }

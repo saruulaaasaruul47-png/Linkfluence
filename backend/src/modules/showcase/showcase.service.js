@@ -5,6 +5,10 @@ import { showcaseRepository } from './showcase.repository.js';
 const missing = () => new AppError('Showcase post was not found.', 404, 'SHOWCASE_NOT_FOUND');
 
 export const showcaseService = {
+  countPublic() {
+    return showcaseRepository.countPublic();
+  },
+
   async list(filters, followerId = null) {
     const result = await showcaseRepository.list(filters, followerId);
     return {

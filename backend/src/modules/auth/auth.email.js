@@ -1,5 +1,6 @@
 import { Resend } from 'resend';
 import { env } from '../../config/env.js';
+import { shouldUseLocalEmailDelivery } from '../../infrastructure/email/email.policy.js';
 import { AUTH_ERROR } from '../../shared/constants/auth.constants.js';
 import { AppError } from '../../shared/errors/AppError.js';
 
@@ -39,9 +40,18 @@ function passwordResetTemplate(code) {
 }
 
 async function deliverEmail(email, code, template, store) {
-  if (env.nodeEnv === 'test') {
+  if (shouldUseLocalEmailDelivery(env.nodeEnv, email)) {
     store.set(email, code);
-    return;
+    if (env.nodeEnv === 'development') {
+      console.info(JSON.stringify({
+        level: 'info',
+        event: 'local_email_delivery',
+        recipient: email,
+        code,
+        reason: 'Reserved development recipient; Resend was not called.',
+      }));
+    }
+    return { local: true };
   }
   if (!env.resendApiKey) {
     throw new AppError(
@@ -57,7 +67,8 @@ async function deliverEmail(email, code, template, store) {
       to: [email],
       ...template(code),
     });
-    if (error) throw new Error('Resend rejected the email.');
+    if (error) throw new Error(error.message || 'Resend rejected the email.');
+    return { delivered: true };
   } catch (error) {
     console.error({ code: AUTH_ERROR.EMAIL_SEND_FAILED, message: error?.message });
     throw new AppError(

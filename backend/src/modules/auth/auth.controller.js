@@ -4,8 +4,8 @@ import { refreshCookieOptions } from '../../shared/utils/cookie.js';
 import { sendSuccess } from '../../shared/utils/response.js';
 import { authService } from './auth.service.js';
 
-function setRefreshCookie(res, refreshToken) {
-  res.cookie(env.refreshCookieName, refreshToken, refreshCookieOptions());
+function setRefreshCookie(res, refreshToken, persistent = true) {
+  res.cookie(env.refreshCookieName, refreshToken, refreshCookieOptions({ persistent }));
 }
 
 const requestContext = (req) => ({
@@ -39,9 +39,21 @@ export const authController = {
   }),
 
   login: asyncHandler(async (req, res) => {
-    const result = await authService.login(req.validated.body, requestContext(req));
-    setRefreshCookie(res, result.refreshToken);
+    const result = await authService.login(req.validated.body, {
+      ...requestContext(req),
+      persistent: req.validated.body.remember,
+    });
+    setRefreshCookie(res, result.refreshToken, result.persistent);
     sendSuccess(res, 200, 'Signed in successfully.', {
+      user: result.user,
+      accessToken: result.accessToken,
+    });
+  }),
+
+  googleLogin: asyncHandler(async (req, res) => {
+    const result = await authService.googleLogin(req.validated.body, requestContext(req));
+    setRefreshCookie(res, result.refreshToken, result.persistent);
+    sendSuccess(res, 200, 'Signed in with Google successfully.', {
       user: result.user,
       accessToken: result.accessToken,
     });
@@ -52,7 +64,7 @@ export const authController = {
       req.cookies?.[env.refreshCookieName],
       requestContext(req),
     );
-    setRefreshCookie(res, result.refreshToken);
+    setRefreshCookie(res, result.refreshToken, result.persistent);
     sendSuccess(res, 200, 'Token refreshed successfully.', {
       accessToken: result.accessToken,
     });

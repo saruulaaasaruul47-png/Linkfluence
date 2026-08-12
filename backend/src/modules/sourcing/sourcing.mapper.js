@@ -6,6 +6,10 @@ export function toSourcedCreator(entry) {
   const engagements = entry.creator.socialAccounts
     .map((account) => decimal(account.engagementRate))
     .filter((value) => value !== null);
+  const verifiedSnapshots = entry.creator.socialAccounts
+    .filter((account) => account.verificationStatus === 'VERIFIED' && account.stats?.[0]?.capturedAt)
+    .map((account) => account.stats[0].capturedAt)
+    .sort((left, right) => new Date(right) - new Date(left));
   return {
     id: entry.id,
     creatorId: entry.creator.id,
@@ -27,6 +31,10 @@ export function toSourcedCreator(entry) {
       rating: decimal(entry.creator.ratingAverage),
       startingRate: decimal(entry.creator.startingRate),
       verified: entry.creator.verificationStatus === 'VERIFIED',
+      statisticsVerified: verifiedSnapshots.length > 0,
+      statisticsCapturedAt: verifiedSnapshots[0] || null,
+      statisticsSource: verifiedSnapshots.length ? 'OAUTH' : 'MANUAL_OR_UNAVAILABLE',
+      platforms: entry.creator.socialAccounts.map((account) => account.platform),
     },
     campaign: entry.campaign || null,
   };

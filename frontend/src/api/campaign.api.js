@@ -3,7 +3,7 @@ import { apiClient } from './axiosClient'
 const dataOf = (response) => response.data?.data
 
 export const campaignApi = {
-  discover: (params = {}) => apiClient.get('/campaigns', { params }).then(dataOf),
+  discover: (params = {}, config = {}) => apiClient.get('/campaigns', { ...config, params }).then(dataOf),
   get: (id) => apiClient.get(`/campaigns/${id}`).then(dataOf),
   listMine: (params = {}) => apiClient.get('/business/campaigns', { params }).then(dataOf),
   create: (payload) => apiClient.post('/business/campaigns', payload).then(dataOf),
@@ -12,6 +12,8 @@ export const campaignApi = {
   pause: (id) => apiClient.post(`/business/campaigns/${id}/pause`, {}).then(dataOf),
   archive: (id) => apiClient.post(`/business/campaigns/${id}/archive`, {}).then(dataOf),
   remove: (id) => apiClient.delete(`/business/campaigns/${id}`).then(dataOf),
+  addAttachment: (id, payload) => apiClient.post(`/business/campaigns/${id}/attachments`, payload).then(dataOf),
+  removeAttachment: (id, attachmentId) => apiClient.delete(`/business/campaigns/${id}/attachments/${attachmentId}`).then(dataOf),
 }
 
 export const proposalApi = {

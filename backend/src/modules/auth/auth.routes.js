@@ -14,6 +14,7 @@ import { authController } from './auth.controller.js';
 import { authenticate } from './auth.middleware.js';
 import {
   forgotPasswordSchema,
+  googleLoginSchema,
   loginSchema,
   registerSchema,
   resendOtpSchema,
@@ -28,6 +29,7 @@ authRouter.post('/register', registerLimiter, validate(registerSchema), authCont
 authRouter.post('/verify-email', verifyOtpLimiter, validate(verifyEmailSchema), authController.verifyEmail);
 authRouter.post('/resend-otp', resendOtpLimiter, validate(resendOtpSchema), authController.resendOtp);
 authRouter.post('/login', loginLimiter, validate(loginSchema), authController.login);
+authRouter.post('/google', loginLimiter, validate(googleLoginSchema), authController.googleLogin);
 authRouter.post('/refresh', refreshLimiter, authController.refresh);
 authRouter.post('/logout', authController.logout);
 authRouter.post('/logout-all', authenticate, authController.logoutAll);

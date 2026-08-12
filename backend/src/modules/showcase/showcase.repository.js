@@ -14,6 +14,10 @@ const publicInclude = {
 };
 
 export const showcaseRepository = {
+  countPublic() {
+    return prisma.showcasePost.count({ where: { status: 'PUBLISHED' } });
+  },
+
   async list(filters, followerId = null) {
     let followedCreatorIds;
     if (followerId) {

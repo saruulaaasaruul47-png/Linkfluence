@@ -1,6 +1,7 @@
 import fs from 'node:fs/promises';
 import path from 'node:path';
 import { AppError } from '../../shared/errors/AppError.js';
+import { detectMedia } from '../media/media.magic.js';
 import { avatarDirectory } from '../../shared/middleware/avatarUpload.js';
 import { comparePassword, hashPassword } from '../../shared/utils/password.js';
 import { toUserProfile } from './user.mapper.js';
@@ -41,6 +42,17 @@ export const userService = {
   async updateAvatar(userId, file) {
     if (!file) {
       throw new AppError('Choose an avatar image to upload.', 400, 'AVATAR_REQUIRED');
+    }
+    let detected;
+    try {
+      detected = detectMedia(await fs.readFile(file.path));
+    } catch (error) {
+      await fs.unlink(file.path).catch(() => {});
+      throw error;
+    }
+    if (!detected || detected.kind !== 'IMAGE' || detected.mimeType !== file.mimetype) {
+      await fs.unlink(file.path).catch(() => {});
+      throw new AppError('The uploaded avatar is not a valid image.', 400, 'INVALID_AVATAR_FILE');
     }
     const current = requireUser(await userRepository.findById(userId));
     const avatarUrl = `/uploads/avatars/${file.filename}`;

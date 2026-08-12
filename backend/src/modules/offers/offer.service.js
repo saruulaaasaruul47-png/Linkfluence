@@ -1,4 +1,5 @@
 import { AppError } from '../../shared/errors/AppError.js';
+import { contractSnapshotFromTerms } from '../contracts/contract.snapshot.js';
 import { toOffer } from './offer.mapper.js';
 import { offerInclude, offerRepository } from './offer.repository.js';
 
@@ -75,6 +76,8 @@ export const offerService = {
       title: payload.title,
       contentType: payload.contentType,
       budget: payload.budget,
+      paymentType: payload.paymentType,
+      barterDetails: payload.barterDetails,
       currency: payload.currency,
       timeline: payload.timeline,
       message: payload.message,
@@ -171,8 +174,8 @@ export const offerService = {
     }
     const expectedVersion = payload.version || offer.version;
     const finalBudget = payload.finalBudget
-      || offer.counterTerms?.creatorResponse?.requestedPayment
-      || Number(offer.budget);
+      ?? offer.counterTerms?.creatorResponse?.requestedPayment
+      ?? Number(offer.budget);
     const finalTimeline = payload.finalTimeline
       || offer.counterTerms?.creatorResponse?.availableTimeline
       || offer.timeline;
@@ -188,6 +191,10 @@ export const offerService = {
       paymentTerms: '100% funded before production',
       additionalRequirements: payload.additionalRequirements || '',
       budget: finalBudget,
+      cashAmount: finalBudget,
+      paymentType: offer.paymentType,
+      barterDetails: offer.barterDetails,
+      barterEstimatedValue: offer.barterDetails?.estimatedValue || null,
       timeline: finalTimeline,
       currency: offer.currency,
     };
@@ -218,13 +225,28 @@ export const offerService = {
           status: 'NEGOTIATION',
           progress: 15,
           terms,
+          paymentType: offer.paymentType,
+          cashAmount: finalBudget,
+          barterEstimatedValue: offer.barterDetails?.estimatedValue || null,
+          barterDetails: offer.barterDetails,
           agreementVersions: { create: { createdById: userId, version: 1, terms } },
-          contract: { create: { status: 'DRAFT', currentVersion: 0 } },
+          contract: { create: { status: 'DRAFT', currentVersion: 0, ...contractSnapshotFromTerms(terms) } },
+          conversation: {
+            create: {
+              title: offer.campaign?.title || offer.title,
+              members: {
+                create: [
+                  { userId: offer.business.userId },
+                  { userId: offer.creator.userId },
+                ],
+              },
+            },
+          },
           workspaceTasks: {
             create: [
-              { createdById: userId, title: 'Confirm final creative brief', ownerRole: 'BOTH' },
-              { createdById: userId, title: 'Upload visual treatment', ownerRole: 'CREATOR' },
-              { createdById: userId, title: 'Review first draft', ownerRole: 'BUSINESS' },
+              { createdById: userId, title: 'Confirm final creative brief', ownerRole: 'BOTH', priority: 'HIGH', sortOrder: 0 },
+              { createdById: userId, assigneeId: offer.creator.userId, title: 'Upload visual treatment', ownerRole: 'CREATOR', priority: 'HIGH', sortOrder: 1 },
+              { createdById: userId, assigneeId: offer.business.userId, title: 'Review first draft', ownerRole: 'BUSINESS', priority: 'MEDIUM', sortOrder: 2 },
             ],
           },
           activities: {
@@ -250,6 +272,26 @@ export const offerService = {
           aggregateId: collaboration.id,
           payload: { collaborationId: collaboration.id, offerId: offer.id },
         },
+      });
+      await tx.notification.createMany({
+        data: [
+          {
+            userId: offer.business.userId,
+            type: 'CONTRACT',
+            title: 'Collaboration workspace created',
+            body: `${offer.title} is ready for agreement review.`,
+            href: `/business/collaborations/${collaboration.id}`,
+            data: { collaborationId: collaboration.id },
+          },
+          {
+            userId: offer.creator.userId,
+            type: 'CONTRACT',
+            title: 'Collaboration workspace created',
+            body: `${offer.title} is ready for agreement review.`,
+            href: `/creator/collaborations/${collaboration.id}`,
+            data: { collaborationId: collaboration.id },
+          },
+        ],
       });
       return { workspaceId: collaboration.id };
     });

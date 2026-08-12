@@ -34,6 +34,9 @@ export const libraryApi = {
       channel,
     }).then(dataOf)
   },
+  socialSummary: (type, id) => apiClient.get(`/channels/${type}/${id}/social-summary`).then(dataOf),
+  followers: (type, id, params = {}) => apiClient.get(`/channels/${type}/${id}/followers`, { params }).then(dataOf),
+  followingList: (type, id, params = {}) => apiClient.get(`/channels/${type}/${id}/following`, { params }).then(dataOf),
 }
 
 export const collectionsApi = {

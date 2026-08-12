@@ -11,7 +11,9 @@ export default function VerifyEmailPage() {
   const location = useLocation()
   const { verifyEmail, resendOtp, isLoading, clearAuthError } = useAuth()
   const { toast } = useToast()
-  const savedEmail = window.sessionStorage.getItem('vyra:pending-verification-email') || ''
+  const [savedEmail] = useState(() => {
+    try { return window.sessionStorage.getItem('vyra:pending-verification-email') || '' } catch { return '' }
+  })
   const [email, setEmail] = useState(location.state?.email || savedEmail)
   const [code, setCode] = useState('')
   const [errors, setErrors] = useState({})
@@ -41,7 +43,7 @@ export default function VerifyEmailPage() {
 
     try {
       await verifyEmail({ email: normalizedEmail, otp: code })
-      window.sessionStorage.removeItem('vyra:pending-verification-email')
+      try { window.sessionStorage.removeItem('vyra:pending-verification-email') } catch { /* Session storage is optional. */ }
       toast('Email verified. Your account is ready.', { type: 'success' })
       navigate('/welcome', { replace: true })
     } catch (error) {

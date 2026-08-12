@@ -13,11 +13,13 @@ function sessionMetadata(context = {}) {
 
 export function createSessionTokens(user, context = {}, familyId = randomUUID()) {
   const jti = randomUUID();
+  const persistent = context.persistent !== false;
   const accessToken = signAccessToken(user);
-  const refresh = signRefreshToken(user.id, jti);
+  const refresh = signRefreshToken(user.id, jti, persistent);
   return {
     accessToken,
     refreshToken: refresh.token,
+    persistent,
     tokenData: {
       userId: user.id,
       tokenHash: hashToken(refresh.token),

@@ -1,7 +1,13 @@
 import { prisma } from '../../config/database.js';
+import { payerTrustSelect } from '../payments/payer-trust.js';
 
 const includeProfile = {
   user: { select: { id: true, avatarUrl: true } },
+  collaborations: { select: payerTrustSelect },
+  socialAccounts: {
+    include: { stats: { orderBy: { capturedAt: 'desc' }, take: 1 } },
+    orderBy: { platform: 'asc' },
+  },
 };
 
 export const businessRepository = {

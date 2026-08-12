@@ -30,4 +30,16 @@ export const interactionController = {
     const { targetType, targetId, channel } = req.validated.body;
     sendSuccess(res, 201, 'Share event recorded.', await interactionService.share(req.user.id, targetType, targetId, channel));
   }),
+  summary: asyncHandler(async (req, res) => {
+    const { targetType, targetId } = req.validated.params;
+    sendSuccess(res, 200, 'Channel social summary loaded.', await interactionService.summary(req.user?.id, targetType, targetId));
+  }),
+  followers: asyncHandler(async (req, res) => {
+    const { targetType, targetId } = req.validated.params;
+    sendSuccess(res, 200, 'Channel followers loaded.', await interactionService.followers(targetType, targetId, req.validated.query));
+  }),
+  following: asyncHandler(async (req, res) => {
+    const { targetType, targetId } = req.validated.params;
+    sendSuccess(res, 200, 'Channel following loaded.', await interactionService.following(targetType, targetId, req.validated.query));
+  }),
 };

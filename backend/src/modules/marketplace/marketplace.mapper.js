@@ -1,3 +1,6 @@
+import { verifiedPayerTruth } from '../payments/payer-trust.js';
+import { toSocialAccount } from '../social-sync/social.mapper.js';
+
 const decimal = (value) => value == null ? null : Number(value);
 
 const portfolio = (item) => ({
@@ -8,6 +11,7 @@ const portfolio = (item) => ({
   mediaType: item.mediaType,
   mediaUrl: item.mediaUrl,
   thumbnailUrl: item.thumbnailUrl || '',
+  verified: item.verified,
   publishedAt: item.publishedAt,
 });
 
@@ -55,20 +59,35 @@ export function toPublicCreator(profile) {
     startingRate: profile.publicRates ? decimal(profile.startingRate) : null,
     rates,
     currency: profile.currency,
-    socialAccounts: profile.socialAccounts.map((account) => ({
-      platform: account.platform,
-      handle: account.handle,
-      profileUrl: account.profileUrl || '',
-      followerCount: account.followerCount,
-      engagementRate: decimal(account.engagementRate),
-      verified: account.verificationStatus === 'VERIFIED',
-    })),
+    socialAccounts: profile.socialAccounts.map((account) => {
+      const safe = toSocialAccount(account);
+      return {
+        platform: safe.platform,
+        handle: safe.handle,
+        profileUrl: safe.profileUrl,
+        followerCount: safe.followerCount,
+        engagementRate: safe.engagementRate,
+        verified: safe.verified,
+        verificationStatus: safe.verificationStatus,
+        syncStatus: safe.syncStatus,
+        syncError: safe.syncError,
+        isStale: safe.isStale,
+        lastSyncAt: safe.lastSyncAt,
+        staleAt: safe.staleAt,
+        latestStats: safe.latestStats,
+        connectionType: safe.connectionType,
+      };
+    }),
     portfolio: profile.portfolioItems?.map(portfolio) || [],
     createdAt: profile.createdAt,
   };
 }
 
 export function toPublicBusiness(profile) {
+  const payerTrust = verifiedPayerTruth(profile.collaborations);
+  const socialAccounts = (profile.socialAccounts || []).map(toSocialAccount);
+  const followerCount = socialAccounts.reduce((sum, account) => sum + Number(account.followerCount || 0), 0);
+  const engagement = socialAccounts.map((account) => account.engagementRate).filter((value) => value != null);
   return {
     id: profile.id,
     slug: profile.slug,
@@ -86,9 +105,23 @@ export function toPublicBusiness(profile) {
     coverUrl: profile.coverUrl || '',
     verified: profile.verificationStatus === 'VERIFIED',
     verificationStatus: profile.verificationStatus,
+    followerCount,
+    engagementRate: engagement.length ? engagement.reduce((sum, value) => sum + value, 0) / engagement.length : null,
+    socialAccounts: socialAccounts.map((account) => ({
+      platform: account.platform,
+      handle: account.handle,
+      profileUrl: account.profileUrl,
+      followerCount: account.followerCount,
+      engagementRate: account.engagementRate,
+      verified: account.verified,
+      syncStatus: account.syncStatus,
+      lastSyncAt: account.lastSyncAt,
+    })),
+    ...payerTrust,
     rating: decimal(profile.ratingAverage),
     ratingCount: profile.ratingCount,
     campaignCount: profile._count?.campaigns || 0,
+    completedCollaborationCount: profile._count?.collaborations || 0,
     campaigns: profile.campaigns?.map((campaign) => ({
       ...campaign,
       budgetMin: decimal(campaign.budgetMin),

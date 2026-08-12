@@ -2,7 +2,7 @@ import { Router } from 'express';
 import { validate } from '../../shared/middleware/validate.js';
 import { authenticate } from '../auth/public.js';
 import { collaborationController } from './collaboration.controller.js';
-import { addActivitySchema, addFileSchema, agreementActionSchema, collaborationIdSchema, collaborationListSchema, lockAgreementSchema, taskSchema, updateTermsSchema } from './collaboration.schema.js';
+import { addActivitySchema, addFileSchema, agreementActionSchema, collaborationIdSchema, collaborationListSchema, createTaskSchema, deleteTaskSchema, lockAgreementSchema, taskSchema, updateTaskSchema, updateTermsSchema } from './collaboration.schema.js';
 export const collaborationRouter = Router();
 collaborationRouter.use(authenticate);
 collaborationRouter.get('/', validate(collaborationListSchema), collaborationController.list);
@@ -10,6 +10,9 @@ collaborationRouter.get('/:id', validate(collaborationIdSchema), collaborationCo
 collaborationRouter.patch('/:id/terms', validate(updateTermsSchema), collaborationController.updateTerms);
 collaborationRouter.post('/:id/agreement/lock', validate(lockAgreementSchema), collaborationController.lockAgreement);
 collaborationRouter.post('/:id/agreement/action', validate(agreementActionSchema), collaborationController.agreementAction);
+collaborationRouter.post('/:id/tasks', validate(createTaskSchema), collaborationController.createTask);
+collaborationRouter.patch('/:id/tasks/:taskId', validate(updateTaskSchema), collaborationController.updateTask);
+collaborationRouter.delete('/:id/tasks/:taskId', validate(deleteTaskSchema), collaborationController.deleteTask);
 collaborationRouter.post('/:id/tasks/:taskId/toggle', validate(taskSchema), collaborationController.toggleTask);
 collaborationRouter.post('/:id/files', validate(addFileSchema), collaborationController.addFile);
 collaborationRouter.post('/:id/activity', validate(addActivitySchema), collaborationController.addActivity);

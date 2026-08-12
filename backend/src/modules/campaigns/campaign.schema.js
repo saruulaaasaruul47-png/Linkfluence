@@ -16,6 +16,12 @@ const pagination = {
   page: z.coerce.number().int().min(1).default(1),
   limit: z.coerce.number().int().min(1).max(50).default(12),
 };
+const productSupport = z.object({
+  provided: z.boolean(),
+  description: z.string().trim().max(1000).optional(),
+  estimatedValue: z.coerce.number().nonnegative().optional(),
+  currency: z.string().trim().length(3).transform((value) => value.toUpperCase()).optional(),
+}).strict();
 const campaignBody = {
   title: z.string().trim().min(3).max(140),
   description: z.string().trim().min(10).max(5000),
@@ -29,6 +35,7 @@ const campaignBody = {
   deadline: date.optional(),
   deliverables: jsonValue.optional(),
   requirements: jsonValue.optional(),
+  productSupport: productSupport.optional(),
 };
 
 export const publicCampaignListSchema = envelope(z.unknown().optional(), empty, z.object({
@@ -64,3 +71,14 @@ export const updateCampaignSchema = envelope(
   }).strict().refine((body) => Object.keys(body).length > 0, 'Submit at least one change.'),
   z.object({ id }),
 );
+
+const attachmentKind = z.enum(['BRIEF', 'BRAND_GUIDELINE', 'REFERENCE']);
+export const addCampaignAttachmentSchema = envelope(z.object({
+  mediaAssetId: id.optional(),
+  name: z.string().trim().min(1).max(255),
+  url: z.string().trim().min(1).max(2000),
+  mimeType: z.string().trim().max(150).optional(),
+  sizeBytes: z.coerce.number().int().min(0).max(100000000).optional(),
+  kind: attachmentKind.default('BRIEF'),
+}).strict(), z.object({ id }));
+export const campaignAttachmentIdSchema = envelope(z.unknown().optional(), z.object({ id, attachmentId: id }));

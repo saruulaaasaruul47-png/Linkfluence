@@ -13,9 +13,23 @@ const toPortfolioItem = (item) => ({
   mediaUrl: item.mediaUrl,
   thumbnailUrl: item.thumbnailUrl || '',
   status: item.status,
+  verified: item.verified,
   sortOrder: item.sortOrder,
   publishedAt: item.publishedAt,
   createdAt: item.createdAt,
+});
+
+const toSocialConnection = (account) => ({
+  id: account.id,
+  platform: account.platform,
+  handle: account.handle,
+  profileUrl: account.profileUrl || '',
+  followerCount: account.followerCount,
+  engagementRate: account.engagementRate == null ? null : Number(account.engagementRate),
+  verificationStatus: account.verificationStatus,
+  syncStatus: account.syncStatus,
+  lastSyncAt: account.lastSyncAt,
+  connectionType: account.syncStatus === 'MANUAL' ? 'MANUAL' : 'API',
 });
 
 export function toCreatorProfile(profile) {
@@ -41,11 +55,15 @@ export function toCreatorProfile(profile) {
     instagram: socialUrl(profile.socialAccounts, 'INSTAGRAM'),
     facebook: socialUrl(profile.socialAccounts, 'FACEBOOK'),
     tiktok: socialUrl(profile.socialAccounts, 'TIKTOK'),
+    youtube: socialUrl(profile.socialAccounts, 'YOUTUBE'),
     manualLink: socialUrl(profile.socialAccounts, 'OTHER'),
+    socialConnections: profile.socialAccounts?.map(toSocialConnection) || [],
     postRate: valueOf(rates.postRate),
     storyRate: valueOf(rates.storyRate),
     reelRate: valueOf(rates.reelRate),
     rate: valueOf(profile.startingRate),
+    startingRate: profile.startingRate == null ? null : Number(profile.startingRate),
+    currency: profile.currency,
     publicRates: profile.publicRates,
     availability: profile.availability || '',
     avatar: profile.avatarUrl || profile.user?.avatarUrl || '',

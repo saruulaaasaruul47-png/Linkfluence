@@ -14,6 +14,8 @@ export function toOffer(offer) {
     title: offer.title,
     contentType: offer.contentType,
     budget: decimal(offer.budget),
+    paymentType: offer.paymentType,
+    barterDetails: offer.barterDetails,
     currency: offer.currency,
     timeline: offer.timeline,
     message: offer.message,

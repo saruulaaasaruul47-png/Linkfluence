@@ -7,6 +7,8 @@ const signatureFor = (payload) => crypto
   .digest('hex');
 
 export const mockPaymentProvider = {
+  name: 'mock',
+  capabilities: Object.freeze({ funding: true, refund: true, payout: true, webhook: true }),
   createIntent({ kind, amount, currency, paymentId }) {
     return {
       provider: 'mock',
@@ -15,8 +17,12 @@ export const mockPaymentProvider = {
       amount,
       currency,
       checkoutUrl: null,
+      expiresAt: new Date(Date.now() + 15 * 60 * 1000).toISOString(),
     };
   },
+  createFundingIntent(input) { return this.createIntent({ ...input, kind: 'funding' }); },
+  createRefund(input) { return this.createIntent({ ...input, kind: 'refund' }); },
+  createPayout(input) { return this.createIntent({ ...input, kind: 'payout' }); },
   sign(payload) {
     return signatureFor(payload);
   },
@@ -37,5 +43,8 @@ export const mockPaymentProvider = {
         currency: record.currency,
       },
     };
+  },
+  async checkIntent(record) {
+    return { paid: ['FUNDED', 'RELEASED', 'PAID'].includes(record.status), amount: Number(record.amount), currency: record.currency, providerRef: record.providerRef, providerPaymentId: record.providerRef, raw: record };
   },
 };

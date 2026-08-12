@@ -43,6 +43,8 @@ export const offerRepository = {
             title: offer.title,
             contentType: offer.contentType,
             budget: String(offer.budget),
+            paymentType: offer.paymentType,
+            barterDetails: offer.barterDetails,
             currency: offer.currency,
             timeline: offer.timeline,
             message: offer.message,

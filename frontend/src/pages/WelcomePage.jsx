@@ -3,6 +3,7 @@ import { ArrowRight, Building2, Compass, Sparkles, UserRound } from 'lucide-reac
 import { useNavigate } from 'react-router-dom'
 import { BrandLogo } from '../components/BrandLogo'
 import { Badge } from '../components/ui'
+import { LanguageSwitcher } from '../components/navigation/LanguageSwitcher'
 
 const choices = [
   { title: 'Create a Creator Channel', copy: 'Showcase your work, audience and rates. Get discovered by the right brands.', icon: UserRound, accent: 'pink', to: '/onboarding/creator' },
@@ -39,7 +40,7 @@ export default function WelcomePage() {
     <div className="soft-glow -right-20 bottom-0 size-96 bg-mint/10" />
     <header className="relative z-10 flex items-center justify-between">
       <BrandLogo className="text-white" />
-      <Badge variant="outline" className="border-white/20 text-white">Account ready</Badge>
+      <div className="flex items-center gap-2"><Badge variant="outline" className="border-white/20 text-white">Account ready</Badge><LanguageSwitcher compact /></div>
     </header>
 
     <section className="relative z-10 mx-auto max-w-7xl pb-12 pt-20 md:pt-28">

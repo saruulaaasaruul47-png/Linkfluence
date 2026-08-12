@@ -6,13 +6,21 @@ export const collaborationInclude = {
   creator: { select: { id: true, userId: true, channelName: true, slug: true, avatarUrl: true } },
   agreementVersions: { orderBy: { version: 'desc' } },
   contract: { include: { versions: { orderBy: { version: 'desc' } } } },
-  workspaceTasks: { orderBy: { createdAt: 'asc' } },
+  workspaceTasks: {
+    include: {
+      assignee: { select: { id: true, displayName: true, avatarUrl: true } },
+      createdBy: { select: { id: true, displayName: true } },
+    },
+    orderBy: [{ status: 'asc' }, { sortOrder: 'asc' }, { createdAt: 'asc' }],
+  },
   workspaceFiles: { orderBy: { createdAt: 'desc' } },
   activities: { orderBy: { createdAt: 'desc' }, take: 100 },
   deliverables: { orderBy: [{ createdAt: 'desc' }, { version: 'desc' }] },
   payments: { orderBy: { createdAt: 'desc' } },
   reviews: { orderBy: { createdAt: 'desc' } },
   showcasePost: { select: { id: true, status: true } },
+  showcaseConsents: true,
+  publishProofs: { orderBy: { createdAt: 'desc' } },
 };
 
 export const collaborationRepository = {

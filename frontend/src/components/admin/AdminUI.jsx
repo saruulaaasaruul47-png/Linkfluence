@@ -1,16 +1,16 @@
-import { useMemo, useState } from 'react'
+import { useEffect, useMemo, useRef, useState } from 'react'
 import {
   AlertTriangle,
   CalendarDays,
   ChevronLeft,
   ChevronRight,
   MoreHorizontal,
+  RotateCcw,
   Search,
-  SlidersHorizontal,
 } from 'lucide-react'
 import { useNavigate } from 'react-router-dom'
 import { Button, Dialog, EmptyState, Select, Skeleton, useToast } from '../ui'
-import { DateFilter, StatusBadge } from '../dashboard/DashboardUI'
+import { DashboardTitleIcon, DateFilter, StatusBadge } from '../dashboard/DashboardUI'
 
 export function AdminPage({ children }) {
   return (
@@ -25,9 +25,10 @@ export function AdminHeader({ eyebrow, title, copy, action, date = true }) {
     <div className="mb-6 flex flex-col justify-between gap-4 xl:flex-row xl:items-end">
       <div className="min-w-0">
         <p className="eyebrow text-white/25">{eyebrow}</p>
-        <h1 className="mt-2.5 break-words text-3xl font-bold tracking-[-.05em] sm:text-4xl">
-          {title}
-        </h1>
+        <div className="mt-2.5 flex items-center gap-3">
+          <DashboardTitleIcon label={title} size="lg" />
+          <h1 className="min-w-0 break-words text-3xl font-bold tracking-[-.05em] sm:text-4xl">{title}</h1>
+        </div>
         {copy && <p className="mt-2.5 max-w-2xl text-xs leading-5 text-white/40 sm:text-sm">{copy}</p>}
       </div>
       <div className="flex flex-wrap gap-2">
@@ -43,11 +44,7 @@ export function AdminStat({ label, value, change, tone = 'pink' }) {
     <article className="min-w-0 rounded-2xl border border-white/10 bg-[#151515] p-4 transition hover:border-white/20">
       <div className="flex justify-between gap-3">
         <p className="truncate text-[11px] text-white/40">{label}</p>
-        <i
-          className={`size-2 shrink-0 rounded-full ${
-            tone === 'mint' ? 'bg-mint' : tone === 'danger' ? 'bg-[#ef5c76]' : 'bg-pink'
-          }`}
-        />
+        <DashboardTitleIcon label={label} accent={tone === 'mint' ? 'mint' : 'pink'} />
       </div>
       <strong className="mt-5 block truncate text-2xl tracking-[-.045em]" title={value}>
         {value}
@@ -69,7 +66,7 @@ export function AdminPanel({ title, action, children, className = '' }) {
       className={`min-w-0 rounded-[1.25rem] border border-white/10 bg-[#151515] p-4 ${className}`}
     >
       <div className="mb-4 flex items-center justify-between gap-3">
-        <h2 className="min-w-0 truncate text-sm font-bold">{title}</h2>
+        <div className="flex min-w-0 items-center gap-2.5"><DashboardTitleIcon label={title}/><h2 className="min-w-0 truncate text-sm font-bold">{title}</h2></div>
         {action || <MoreHorizontal size={16} className="shrink-0 text-white/30" />}
       </div>
       {children}
@@ -94,6 +91,8 @@ export function AdminDataPage({
   const [filter, setFilter] = useState('')
   const [page, setPage] = useState(1)
   const [loading, setLoading] = useState(false)
+  const loadingTimer = useRef(null)
+  useEffect(() => () => window.clearTimeout(loadingTimer.current), [])
   const filtered = useMemo(
     () =>
       rows.filter(
@@ -108,8 +107,9 @@ export function AdminDataPage({
   const pageCount = Math.max(1, Math.ceil(filtered.length / 6))
   const visible = filtered.slice((page - 1) * 6, page * 6)
   const simulate = () => {
+    window.clearTimeout(loadingTimer.current)
     setLoading(true)
-    window.setTimeout(() => setLoading(false), 500)
+    loadingTimer.current = window.setTimeout(() => setLoading(false), 500)
   }
 
   return (
@@ -117,8 +117,8 @@ export function AdminDataPage({
       <AdminHeader eyebrow={eyebrow} title={title} copy={copy} action={actions} date={false} />
       {toolbar}
       {summary}
-      <div className="mb-4 grid grid-cols-1 gap-3 rounded-2xl border border-white/10 bg-[#151515] p-3 sm:grid-cols-2 xl:grid-cols-[minmax(0,1fr)_auto_12rem_auto] xl:items-center">
-        <div className="relative min-w-0 sm:col-span-2 xl:col-span-1">
+      <div className="mb-4 grid grid-cols-1 gap-2 rounded-2xl border border-white/10 bg-[#151515] p-2 sm:grid-cols-2 md:grid-cols-[minmax(12rem,1fr)_auto_10.5rem_auto] md:items-center">
+        <div className="relative min-w-0 sm:col-span-2 md:col-span-1">
           <Search
             size={14}
             className="absolute left-3 top-1/2 -translate-y-1/2 text-white/30"
@@ -131,10 +131,10 @@ export function AdminDataPage({
               setPage(1)
             }}
             placeholder={`Search ${title.toLowerCase()}...`}
-            className="h-10 w-full rounded-xl border border-white/10 bg-white/[.035] pl-9 pr-3 text-xs outline-none focus:border-pink"
+            className="h-9 w-full rounded-lg border border-white/10 bg-white/[.035] pl-9 pr-3 text-[11px] outline-none transition focus:border-pink focus:bg-white/[.05]"
           />
         </div>
-        <DateFilter />
+        <DateFilter compact />
         <Select
           aria-label="Filter status"
           value={filter}
@@ -144,10 +144,10 @@ export function AdminDataPage({
           }}
           options={filters.map((item) => ({ label: item, value: item }))}
           placeholder="Filter status"
-          className="w-full"
+          className="w-full [&_.ui-select-field]:!min-h-9 [&_.ui-select-field]:!rounded-lg [&_.ui-select-field]:!px-3 [&_.ui-select-field]:!py-1.5 [&_.ui-select-field]:!text-[11px]"
         />
-        <Button variant="outline" onClick={simulate}>
-          <SlidersHorizontal size={14} />
+        <Button size="sm" variant="outline" className="w-full rounded-lg sm:col-span-2 md:col-span-1 md:w-auto" onClick={simulate}>
+          <RotateCcw size={13} />
           Refresh
         </Button>
       </div>
@@ -298,6 +298,7 @@ export function DangerAction({
   className = '',
 }) {
   const [open, setOpen] = useState(false)
+  const [busy, setBusy] = useState(false)
   const { toast } = useToast()
   return (
     <>
@@ -309,7 +310,7 @@ export function DangerAction({
         open={open}
         onClose={() => setOpen(false)}
         title={title}
-        description={description || 'This mock action changes frontend state only.'}
+        description={description || 'Review this administrative action before continuing.'}
       >
         <div className="flex gap-3 rounded-xl border border-[#ef5c76]/25 bg-[#ef5c76]/5 p-4 text-xs leading-5 text-white/55">
           <AlertTriangle size={17} className="shrink-0 text-[#ef7189]" />
@@ -322,10 +323,19 @@ export function DangerAction({
           </Button>
           <Button
             variant="danger"
-            onClick={() => {
-              onConfirm?.()
-              setOpen(false)
-              toast(`${label} mock action completed.`, { type: 'success' })
+            loading={busy}
+            onClick={async () => {
+              if (!onConfirm) {
+                toast(`${label} is not connected to an API yet.`, { type: 'error' })
+                return
+              }
+              setBusy(true)
+              try {
+                await onConfirm()
+                setOpen(false)
+              } finally {
+                setBusy(false)
+              }
             }}
           >
             Confirm {label.toLowerCase()}

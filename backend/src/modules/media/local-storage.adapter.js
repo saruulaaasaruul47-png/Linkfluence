@@ -26,4 +26,11 @@ export const localMediaStorage = {
     if (!target.startsWith(`${mediaRoot}${path.sep}`)) return;
     await fs.unlink(target).catch(() => {});
   },
+  resolve(storageKey) {
+    const target = path.resolve(mediaRoot, storageKey);
+    if (!target.startsWith(`${mediaRoot}${path.sep}`)) {
+      throw new Error('Invalid media storage path.');
+    }
+    return target;
+  },
 };

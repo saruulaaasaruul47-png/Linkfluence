@@ -14,13 +14,14 @@ export function normalizeTargetType(value) {
 export const targetService = {
   async resolve(typeInput, identifier) {
     const requestedType = normalizeTargetType(typeInput);
-    const type = requestedType === 'CONTENT' ? 'SHOWCASE' : requestedType;
+    const type = requestedType;
     const finders = {
       CREATOR: targetRepository.findCreator,
       BUSINESS: targetRepository.findBusiness,
       CAMPAIGN: targetRepository.findCampaign,
       PORTFOLIO: targetRepository.findPortfolio,
       SHOWCASE: targetRepository.findShowcase,
+      CONTENT: targetRepository.findContent,
     };
     const target = await finders[type](String(identifier || '').trim());
     if (!target) throw new AppError('The selected item was not found.', 404, 'TARGET_NOT_FOUND');
@@ -28,7 +29,7 @@ export const targetService = {
       type: requestedType,
       canonicalType: type,
       id: target.id,
-      ownerUserId: target.userId || null,
+      ownerUserId: target.userId || target.creator?.userId || target.business?.userId || null,
       data: target,
     };
   },

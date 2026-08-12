@@ -1,8 +1,8 @@
 import { useEffect, useRef, useState } from 'react'
 import { campaignApi, proposalApi, sourcingApi } from '../api/campaign.api'
-import { dashboardCampaigns, portfolioItems as initialPortfolio } from '../data/dashboard'
 import { useAuth } from './auth-context'
 import { DashboardDataContext } from './dashboard-data-context'
+import { parseMoneyRange } from '../utils/money'
 
 const statusLabel = (value) => ({
   DRAFT: 'Draft',
@@ -36,15 +36,6 @@ function budgetLabel(item) {
   if (item.budgetMin == null) return `Up to ${money(item.budgetMax, item.currency)}`
   if (item.budgetMax == null) return `From ${money(item.budgetMin, item.currency)}`
   return `${money(item.budgetMin, item.currency)}–${money(item.budgetMax, item.currency)}`
-}
-
-function parseMoneyRange(value) {
-  const matches = String(value || '').toUpperCase().matchAll(/(\d+(?:\.\d+)?)\s*([KMB])?/g)
-  const numbers = [...matches].map((match) => {
-    const scale = { K: 1_000, M: 1_000_000, B: 1_000_000_000 }[match[2]] || 1
-    return Number(match[1]) * scale
-  }).filter(Number.isFinite)
-  return { budgetMin: numbers[0], budgetMax: numbers[1] ?? numbers[0] }
 }
 
 function mapCampaign(item) {
@@ -120,91 +111,38 @@ function campaignPayload(data) {
   }
 }
 
-function usePersistentState(key, initialValue) {
-  const [value, setValue] = useState(() => {
-    try {
-      const stored = window.localStorage.getItem(key)
-      return stored ? JSON.parse(stored) : initialValue
-    } catch {
-      return initialValue
-    }
-  })
-  useEffect(() => {
-    try { window.localStorage.setItem(key, JSON.stringify(value)) } catch { /* Keep the current tab usable. */ }
-  }, [key, value])
-  return [value, setValue]
-}
-
 export function DashboardDataProvider({ children }) {
   const { isAuthenticated, user } = useAuth()
-  const [portfolio, setPortfolio] = usePersistentState('vyra:dashboard:portfolio', initialPortfolio)
-  const [campaigns, setCampaigns] = useState(dashboardCampaigns)
+  const [dataOwnerId, setDataOwnerId] = useState(null)
+  const hydrateVersion = useRef(0)
+  const [campaigns, setCampaigns] = useState([])
   const [creatorProposals, setCreatorProposals] = useState([])
   const [businessProposals, setBusinessProposals] = useState([])
   const [campaignInvitations, setCampaignInvitations] = useState([])
-  const [decisions, setDecisions] = usePersistentState('vyra:dashboard:decisions', {})
   const [shortlist, setShortlist] = useState([])
   const [compare, setCompare] = useState([])
   const [invited, setInvited] = useState([])
-  const [preferences, setPreferences] = usePersistentState('vyra:dashboard:preferences', {
-    creator: { email: true, campaign: true, marketing: false },
-    business: { email: true, campaign: true, marketing: false },
-  })
-  const [paymentMethods, setPaymentMethods] = usePersistentState('vyra:dashboard:payment-methods', [])
-  const [payoutRequests, setPayoutRequests] = usePersistentState('vyra:dashboard:payout-requests', [])
-  const [refundCases, setRefundCases] = usePersistentState('vyra:dashboard:refund-cases', [])
-  const [analyticsEvents, setAnalyticsEvents] = usePersistentState('vyra:dashboard:analytics-events', [])
-  const [conversations, setConversations] = usePersistentState('vyra:dashboard:conversations', [
-    {
-      id: 'm1',
-      name: 'Sarnai · GOBI',
-      avatar: 'SG',
-      campaignId: 'soft-icons',
-      contractId: 'ctr-8821',
-      online: true,
-      unread: 2,
-      messages: [
-        { id: 'msg-1', sender: 'them', text: 'The revised treatment looks excellent. Can we lock Friday?', createdAt: '2026-07-27T02:42:00.000Z', status: 'read' },
-        { id: 'msg-2', sender: 'me', text: 'This direction feels right. Let’s lock Friday and keep the softer final frame.', createdAt: '2026-07-27T02:48:00.000Z', status: 'read' },
-      ],
-    },
-    {
-      id: 'm2',
-      name: 'Temuulen Film',
-      avatar: 'TF',
-      campaignId: 'city-in-motion',
-      contractId: 'ctr-8794',
-      online: false,
-      unread: 0,
-      messages: [{ id: 'msg-3', sender: 'them', text: 'I uploaded the location recce and first selects.', createdAt: '2026-07-26T05:10:00.000Z', status: 'read' }],
-    },
-    {
-      id: 'm3',
-      name: 'Lhamour Team',
-      avatar: 'LT',
-      campaignId: 'skin-honestly',
-      contractId: 'ctr-8712',
-      online: true,
-      unread: 1,
-      messages: [{ id: 'msg-4', sender: 'them', text: 'Finance has approved the milestone.', createdAt: '2026-07-25T08:30:00.000Z', status: 'delivered' }],
-    },
-  ])
-  const [notificationReadIds, setNotificationReadIds] = usePersistentState('vyra:dashboard:notification-read', [])
   const campaignVersions = useRef(new Map())
   const campaignMutationQueues = useRef(new Map())
 
   useEffect(() => {
-    setPortfolio((items) => {
-      const legacyIds = new Set(['p1', 'p2', 'p3'])
-      if (!items.some((item) => legacyIds.has(item.id))) return items
-      const creatorAddedItems = items.filter((item) => !legacyIds.has(item.id))
-      return [...creatorAddedItems, ...initialPortfolio]
-    })
-  }, [setPortfolio])
-
-  useEffect(() => {
+    const version = ++hydrateVersion.current
     if (!isAuthenticated || !user) {
-      return undefined
+      campaignVersions.current.clear()
+      Promise.resolve().then(() => {
+        if (version !== hydrateVersion.current) return
+        setCampaigns([])
+        setCreatorProposals([])
+        setBusinessProposals([])
+        setCampaignInvitations([])
+        setShortlist([])
+        setCompare([])
+        setInvited([])
+        setDataOwnerId(null)
+      })
+      return () => {
+        if (version === hydrateVersion.current) hydrateVersion.current += 1
+      }
     }
 
     let active = true
@@ -230,7 +168,7 @@ export function DashboardDataProvider({ children }) {
         businessRequests?.catch(() => null),
         creatorRequests?.catch(() => null),
       ])
-      if (!active) return
+      if (!active || version !== hydrateVersion.current) return
       if (businessData) {
         const [campaignResult, proposalResult, shortlistResult, compareResult, invitationsResult] = businessData
         const mappedCampaigns = campaignResult.items.map(mapCampaign)
@@ -241,20 +179,29 @@ export function DashboardDataProvider({ children }) {
         setCompare(compareResult.items.map((entry) => entry.creator.slug || entry.creatorId))
         setInvited(invitationsResult.items.map((entry) => entry.creator.slug || entry.creator.id))
         if (!hasCreator) setCampaignInvitations(invitationsResult.items.map(mapInvitation))
+      } else {
+        setCampaigns([])
+        setBusinessProposals([])
+        setShortlist([])
+        setCompare([])
+        setInvited([])
       }
       if (creatorData) {
         const [proposalResult, invitationResult] = creatorData
         setCreatorProposals(proposalResult.items.map(mapProposal))
         setCampaignInvitations(invitationResult.items.map(mapInvitation))
+      } else {
+        setCreatorProposals([])
+        if (!hasBusiness) setCampaignInvitations([])
       }
+      setDataOwnerId(user.id)
     }
     hydrate()
-    return () => { active = false }
+    return () => {
+      active = false
+      if (version === hydrateVersion.current) hydrateVersion.current += 1
+    }
   }, [isAuthenticated, user])
-
-  const addPortfolioItem = (item) => setPortfolio((items) => [{ ...item, id: `portfolio-${Date.now()}`, views: '0', saves: '0' }, ...items])
-  const updatePortfolioItem = (id, details) => setPortfolio((items) => items.map((item) => item.id === id ? { ...item, ...details } : item))
-  const deletePortfolioItem = (id) => setPortfolio((items) => items.filter((item) => item.id !== id))
 
   const addCampaign = async (data) => {
     const result = await campaignApi.create(campaignPayload(data))
@@ -276,7 +223,7 @@ export function DashboardDataProvider({ children }) {
     }
     setCampaigns((items) => items.map((item) => item.id === id ? { ...item, ...details } : item))
     const previous = campaignMutationQueues.current.get(id) || Promise.resolve()
-    const mutation = previous.catch(() => null).then(async () => {
+    const operation = previous.catch(() => null).then(async () => {
       let result
       if (details.status && details.status !== current.status) {
         if (details.status === 'Active') result = await campaignApi.publish(id, current.requirements?.openApplication !== false)
@@ -295,11 +242,17 @@ export function DashboardDataProvider({ children }) {
       campaignVersions.current.set(id, updated.version)
       setCampaigns((items) => items.map((item) => item.id === id ? updated : item))
       return updated
+    })
+    const mutation = operation.catch(() => {
+      if (campaignMutationQueues.current.get(id) === mutation) {
+        setCampaigns((items) => items.map((item) => item.id === id ? current : item))
+      }
+      return current
     }).finally(() => {
       if (campaignMutationQueues.current.get(id) === mutation) campaignMutationQueues.current.delete(id)
     })
     campaignMutationQueues.current.set(id, mutation)
-    return mutation.catch(() => current)
+    return mutation
   }
   const deleteCampaign = async (id) => {
     await campaignApi.remove(id)
@@ -332,8 +285,6 @@ export function DashboardDataProvider({ children }) {
     setCreatorProposals((items) => items.map((item) => item.id === id ? proposal : item))
     return proposal
   }
-  const setDecision = (id, decision) => setDecisions((items) => ({ ...items, [id]: decision }))
-
   const toggleShortlist = async (id) => {
     const exists = shortlist.includes(id)
     if (exists) await sourcingApi.removeShortlist(id)
@@ -375,100 +326,25 @@ export function DashboardDataProvider({ children }) {
     setCampaignInvitations((items) => items.map((entry) => entry.id === id ? invitation : entry))
     return invitation
   }
-  const updatePreferences = (role, details) => setPreferences((items) => ({ ...items, [role]: { ...items[role], ...details } }))
-  const addPaymentMethod = (details) => setPaymentMethods((items) => [{
-    id: `method-${Date.now()}`,
-    createdAt: new Date().toISOString(),
-    ...details,
-  }, ...items])
-  const removePaymentMethod = (id) => setPaymentMethods((items) => items.filter((item) => item.id !== id))
-  const requestPayout = (amount) => setPayoutRequests((items) => [{
-    id: `payout-${Date.now()}`,
-    amount,
-    status: 'Pending',
-    createdAt: new Date().toISOString(),
-  }, ...items])
-  const createRefundCase = (transactionId, reason) => setRefundCases((items) => [{
-    id: `refund-${Date.now()}`,
-    transactionId,
-    reason,
-    status: 'Open',
-    createdAt: new Date().toISOString(),
-  }, ...items])
-  const reconcileRefundCase = (id) => setRefundCases((items) => items.map((item) => item.id === id ? { ...item, status: 'Reconciled', reconciledAt: new Date().toISOString() } : item))
-  const trackAnalyticsEvent = (type, details = {}) => setAnalyticsEvents((items) => [{
-    id: `event-${Date.now()}-${Math.random().toString(36).slice(2, 6)}`,
-    type,
-    createdAt: new Date().toISOString(),
-    ...details,
-  }, ...items].slice(0, 250))
-  const markConversationRead = (id) => setConversations((items) => items.map((item) => item.id === id ? { ...item, unread: 0 } : item))
-  const sendMessage = (conversationId, data) => setConversations((items) => items.map((item) => item.id === conversationId ? {
-    ...item,
-    messages: [...item.messages, {
-      id: `message-${Date.now()}`,
-      sender: 'me',
-      text: data.text?.trim() || '',
-      attachment: data.attachment || null,
-      createdAt: new Date().toISOString(),
-      status: 'delivered',
-    }],
-  } : item))
-  const editMessage = (conversationId, messageId, text) => setConversations((items) => items.map((item) => item.id === conversationId ? {
-    ...item,
-    messages: item.messages.map((message) => message.id === messageId && message.sender === 'me' ? { ...message, text: text.trim(), editedAt: new Date().toISOString() } : message),
-  } : item))
-  const deleteMessage = (conversationId, messageId) => setConversations((items) => items.map((item) => item.id === conversationId ? {
-    ...item,
-    messages: item.messages.filter((message) => message.id !== messageId || message.sender !== 'me'),
-  } : item))
-  const markStaticNotificationRead = (id) => setNotificationReadIds((items) => [...new Set([...items, id])])
-  const markAllStaticNotificationsRead = (ids) => setNotificationReadIds((items) => [...new Set([...items, ...ids])])
-
+  const ownsCurrentData = Boolean(user?.id && dataOwnerId === user.id)
   const value = {
-    portfolio,
-    addPortfolioItem,
-    updatePortfolioItem,
-    deletePortfolioItem,
-    campaigns,
+    campaigns: ownsCurrentData ? campaigns : [],
     addCampaign,
     updateCampaign,
     deleteCampaign,
-    creatorProposals,
-    businessProposals,
-    campaignInvitations,
+    creatorProposals: ownsCurrentData ? creatorProposals : [],
+    businessProposals: ownsCurrentData ? businessProposals : [],
+    campaignInvitations: ownsCurrentData ? campaignInvitations : [],
     submitProposal,
     withdrawProposal,
     decideProposal,
     respondInvitation,
-    decisions,
-    setDecision,
-    shortlist,
-    compare,
-    invited,
+    shortlist: ownsCurrentData ? shortlist : [],
+    compare: ownsCurrentData ? compare : [],
+    invited: ownsCurrentData ? invited : [],
     toggleShortlist,
     toggleCompare,
     inviteCreator,
-    preferences,
-    updatePreferences,
-    paymentMethods,
-    addPaymentMethod,
-    removePaymentMethod,
-    payoutRequests,
-    requestPayout,
-    refundCases,
-    createRefundCase,
-    reconcileRefundCase,
-    analyticsEvents,
-    trackAnalyticsEvent,
-    conversations,
-    markConversationRead,
-    sendMessage,
-    editMessage,
-    deleteMessage,
-    notificationReadIds,
-    markStaticNotificationRead,
-    markAllStaticNotificationsRead,
   }
 
   return <DashboardDataContext.Provider value={value}>{children}</DashboardDataContext.Provider>
