@@ -8,6 +8,10 @@
 **/.env.*
 !.env.example
 !**/.env.example
+# Vite exposes VITE_* values to the browser, so this production file must never
+# contain secrets. Keeping it versioned prevents a Vercel build from silently
+# falling back to its own origin when dashboard variables are missing.
+!frontend/.env.production
 *.pem
 *.key
 *.p12

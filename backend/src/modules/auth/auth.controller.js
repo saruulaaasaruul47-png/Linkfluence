@@ -83,12 +83,12 @@ export const authController = {
   }),
 
   forgotPassword: asyncHandler(async (req, res) => {
-    await authService.forgotPassword(req.validated.body);
+    const data = await authService.forgotPassword(req.validated.body);
     sendSuccess(
       res,
       200,
       'If an eligible account exists, a password reset code has been sent.',
-      null,
+      data,
     );
   }),
 

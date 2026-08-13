@@ -22,9 +22,17 @@ export default function ForgotPasswordPage() {
   const [resetToken, setResetToken] = useState('')
   const [error, setError] = useState('')
   const [loading, setLoading] = useState(false)
+  const [resendIn, setResendIn] = useState(0)
   const navigate = useNavigate()
   const redirectTimer = useRef(null)
   useEffect(() => () => window.clearTimeout(redirectTimer.current), [])
+  useEffect(() => {
+    if (resendIn <= 0) return undefined
+    const timer = window.setInterval(() => {
+      setResendIn((value) => Math.max(0, value - 1))
+    }, 1000)
+    return () => window.clearInterval(timer)
+  }, [resendIn])
 
   const errorMessage = (error) => parseAuthError(error).message
 
@@ -37,7 +45,8 @@ export default function ForgotPasswordPage() {
     setLoading(true)
     setError('')
     try {
-      await authApi.forgotPassword({ email: email.trim().toLowerCase() })
+      const result = await authApi.forgotPassword({ email: email.trim().toLowerCase() })
+      setResendIn(result?.resendAvailableInSeconds || 60)
       setStep('otp')
     } catch (requestError) {
       setError(errorMessage(requestError))
@@ -117,7 +126,9 @@ export default function ForgotPasswordPage() {
           <form onSubmit={verifyCode} className="space-y-4" noValidate>
             <Input name="otp" inputMode="numeric" autoComplete="one-time-code" label="Reset code" placeholder="000000" maxLength={6} value={otp} onChange={(event) => setOtp(event.target.value.replace(/\D/g, '').slice(0, 6))} error={error} reserveMessage />
             <Button type="submit" size="lg" className="w-full" loading={loading}>Verify code</Button>
-            <Button type="button" variant="ghost" className="w-full" onClick={requestCode} disabled={loading}>Resend code</Button>
+            <Button type="button" variant="ghost" className="w-full" onClick={requestCode} disabled={loading || resendIn > 0}>
+              {resendIn > 0 ? `Resend in ${resendIn}s` : 'Resend code'}
+            </Button>
           </form>
         </>
       )}

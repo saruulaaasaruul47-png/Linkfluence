@@ -91,6 +91,7 @@ if (result.data.COOKIE_SAME_SITE === 'none' && !result.data.COOKIE_SECURE) {
 if (result.data.NODE_ENV === 'production') {
   const errors = [];
   if (!result.data.CLIENT_URL.startsWith('https://')) errors.push('CLIENT_URL must use HTTPS');
+  if (!result.data.API_PUBLIC_URL.startsWith('https://')) errors.push('API_PUBLIC_URL must use HTTPS');
   if (!result.data.COOKIE_SECURE) errors.push('COOKIE_SECURE must be true');
   if (!result.data.JWT_PASSWORD_RESET_SECRET) errors.push('JWT_PASSWORD_RESET_SECRET is required');
   if (result.data.JWT_PASSWORD_RESET_SECRET === result.data.JWT_ACCESS_SECRET) {
@@ -98,10 +99,10 @@ if (result.data.NODE_ENV === 'production') {
   }
   if (!result.data.RESEND_API_KEY) errors.push('RESEND_API_KEY is required');
   if (!result.data.GOOGLE_CLIENT_ID) errors.push('GOOGLE_CLIENT_ID is required');
-  if (result.data.PAYMENT_WEBHOOK_SECRET === 'local-payment-webhook-secret-change-me') {
-    errors.push('PAYMENT_WEBHOOK_SECRET must be changed');
+  if (result.data.PAYMENT_PROVIDER === 'mock') errors.push('PAYMENT_PROVIDER must be stripe or qpay');
+  if (!/^(?:[a-f0-9]{64}|[A-Za-z0-9+/]{43}=)$/i.test(result.data.PAYOUT_ACCOUNT_ENCRYPTION_KEY)) {
+    errors.push('PAYOUT_ACCOUNT_ENCRYPTION_KEY must be 32-byte base64 or 64-character hex');
   }
-  if (!result.data.PAYOUT_ACCOUNT_ENCRYPTION_KEY) errors.push('PAYOUT_ACCOUNT_ENCRYPTION_KEY is required');
   if (result.data.PAYMENT_PROVIDER === 'qpay') {
     if (!result.data.QPAY_CLIENT_ID) errors.push('QPAY_CLIENT_ID is required when PAYMENT_PROVIDER=qpay');
     if (!result.data.QPAY_CLIENT_SECRET) errors.push('QPAY_CLIENT_SECRET is required when PAYMENT_PROVIDER=qpay');
@@ -115,7 +116,9 @@ if (result.data.NODE_ENV === 'production') {
   if (/example\.com/i.test(result.data.RESEND_FROM_EMAIL)) {
     errors.push('RESEND_FROM_EMAIL must use a configured sender domain');
   }
-  if (!result.data.SOCIAL_TOKEN_ENCRYPTION_KEY) errors.push('SOCIAL_TOKEN_ENCRYPTION_KEY is required');
+  if (!/^(?:[a-f0-9]{64}|[A-Za-z0-9+/]{43}=)$/i.test(result.data.SOCIAL_TOKEN_ENCRYPTION_KEY)) {
+    errors.push('SOCIAL_TOKEN_ENCRYPTION_KEY must be 32-byte base64 or 64-character hex');
+  }
   if (result.data.SOCIAL_PROVIDER_MODE === 'meta') {
     if (!result.data.META_APP_ID) errors.push('META_APP_ID is required when SOCIAL_PROVIDER_MODE=meta');
     if (!result.data.META_APP_SECRET) errors.push('META_APP_SECRET is required when SOCIAL_PROVIDER_MODE=meta');
@@ -154,8 +157,10 @@ export const env = {
   jwtPasswordResetExpiresIn: result.data.JWT_PASSWORD_RESET_EXPIRES_IN,
   bcryptSaltRounds: result.data.BCRYPT_SALT_ROUNDS,
   refreshCookieName: result.data.REFRESH_COOKIE_NAME,
-  cookieSecure: result.data.COOKIE_SECURE,
-  cookieSameSite: result.data.COOKIE_SAME_SITE,
+  // Integration tests run over Supertest's in-memory HTTP transport. Never let
+  // a developer's production cookie settings make the test cookie jar unusable.
+  cookieSecure: result.data.NODE_ENV === 'test' ? false : result.data.COOKIE_SECURE,
+  cookieSameSite: result.data.NODE_ENV === 'test' ? 'lax' : result.data.COOKIE_SAME_SITE,
   otpExpiresInMinutes: result.data.OTP_EXPIRES_IN_MINUTES,
   otpMaxAttempts: result.data.OTP_MAX_ATTEMPTS,
   otpResendCooldownSeconds: result.data.OTP_RESEND_COOLDOWN_SECONDS,

@@ -305,19 +305,36 @@ export const authService = {
 
   async forgotPassword(payload) {
     const user = await authRepository.findUserByEmail(payload.email);
-    if (!user || user.deletedAt || user.status !== 'ACTIVE' || !user.emailVerifiedAt) return null;
+    const response = {
+      expiresInSeconds: env.otpExpiresInMinutes * 60,
+      resendAvailableInSeconds: env.otpResendCooldownSeconds,
+    };
+    if (!user || user.deletedAt || user.status !== 'ACTIVE' || !user.emailVerifiedAt) return response;
     const latest = await authRepository.findLatestVerificationCode(
       user.id,
       PASSWORD_RESET_PURPOSE,
     );
-    if (latest?.resendAvailableAt > new Date()) return null;
+    if (latest?.resendAvailableAt > new Date()) {
+      return {
+        ...response,
+        resendAvailableInSeconds: Math.max(
+          1,
+          Math.ceil((latest.resendAvailableAt.getTime() - Date.now()) / 1000),
+        ),
+      };
+    }
     const code = generateOtp();
-    await authRepository.replaceVerificationCode(
+    const verification = await authRepository.replaceVerificationCode(
       user.id,
       codeData(code, PASSWORD_RESET_PURPOSE),
     );
-    await sendPasswordResetEmail(user.email, code).catch(() => null);
-    return null;
+    try {
+      await sendPasswordResetEmail(user.email, code);
+    } catch (error) {
+      await authRepository.markVerificationDeliveryFailed(verification.id).catch(() => null);
+      throw error;
+    }
+    return response;
   },
 
   async verifyResetOtp(payload) {

@@ -122,6 +122,14 @@ export const authRepository = {
     });
   },
 
+  markVerificationDeliveryFailed(codeId, db = prisma) {
+    const now = new Date();
+    return db.verificationCode.updateMany({
+      where: { id: codeId, consumedAt: null },
+      data: { consumedAt: now, resendAvailableAt: now },
+    });
+  },
+
   createAuthToken(data, db = prisma) {
     return db.authToken.create({ data });
   },

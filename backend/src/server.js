@@ -35,6 +35,8 @@ function listenOnce() {
     };
     server.once('error', onError);
     server.once('listening', onListening);
+    // Omitting a hostname binds to the unspecified address (0.0.0.0/::), which
+    // lets Render's proxy reach the process on its injected PORT.
     server.listen(env.port);
   });
 }
@@ -132,7 +134,10 @@ try {
   await setupRealtime(server);
   eventingStarted = true;
   await eventing.start();
-  console.log(`Influence Hub API listening on http://localhost:${env.port}`);
+  const publicUrl = env.nodeEnv === 'production'
+    ? env.apiPublicUrl.replace(/\/$/, '')
+    : `http://localhost:${env.port}`;
+  console.log(`Influence Hub API listening on ${publicUrl}`);
 } catch (error) {
   if (error?.code === 'EADDRINUSE') {
     console.error(

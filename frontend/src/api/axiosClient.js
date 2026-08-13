@@ -1,10 +1,13 @@
 import axios from 'axios'
 import { tokenStore } from './tokenStore'
 
-export const API_BASE_URL =
+const configuredApiBaseUrl = (
   import.meta.env.VITE_API_BASE_URL ||
   import.meta.env.VITE_API_URL ||
-  '/api/v1'
+  ''
+).trim()
+
+export const API_BASE_URL = (configuredApiBaseUrl || '/api/v1').replace(/\/$/, '')
 
 export const apiClient = axios.create({
   baseURL: API_BASE_URL,

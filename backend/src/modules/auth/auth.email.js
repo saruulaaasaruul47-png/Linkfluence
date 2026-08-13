@@ -6,6 +6,7 @@ import { AppError } from '../../shared/errors/AppError.js';
 
 const testCodes = new Map();
 const testResetCodes = new Map();
+const resend = env.resendApiKey ? new Resend(env.resendApiKey) : null;
 
 function emailTemplate(code) {
   return {
@@ -39,7 +40,11 @@ function passwordResetTemplate(code) {
   };
 }
 
-async function deliverEmail(email, code, template, store) {
+async function deliverEmail(email, code, template, store, {
+  errorCode = AUTH_ERROR.EMAIL_SEND_FAILED,
+  failureMessage = 'The verification email could not be sent. Please try resending the code.',
+  purpose = 'verification',
+} = {}) {
   if (shouldUseLocalEmailDelivery(env.nodeEnv, email)) {
     store.set(email, code);
     if (env.nodeEnv === 'development') {
@@ -53,28 +58,42 @@ async function deliverEmail(email, code, template, store) {
     }
     return { local: true };
   }
-  if (!env.resendApiKey) {
+  if (!resend) {
     throw new AppError(
-      'The verification email could not be sent. Please try resending the code.',
+      failureMessage,
       502,
-      AUTH_ERROR.EMAIL_SEND_FAILED,
+      errorCode,
     );
   }
   try {
-    const resend = new Resend(env.resendApiKey);
-    const { error } = await resend.emails.send({
+    const { data, error } = await resend.emails.send({
       from: env.resendFromEmail,
       to: [email],
       ...template(code),
     });
     if (error) throw new Error(error.message || 'Resend rejected the email.');
-    return { delivered: true };
+    if (!data?.id) throw new Error('Resend did not return a delivery id.');
+    console.info(JSON.stringify({
+      level: 'info',
+      event: 'email_delivery_accepted',
+      provider: 'resend',
+      purpose,
+      deliveryId: data.id,
+    }));
+    return { delivered: true, deliveryId: data.id };
   } catch (error) {
-    console.error({ code: AUTH_ERROR.EMAIL_SEND_FAILED, message: error?.message });
+    console.error(JSON.stringify({
+      level: 'error',
+      event: 'email_delivery_failed',
+      provider: 'resend',
+      purpose,
+      code: errorCode,
+      message: error?.message || 'Unknown Resend error',
+    }));
     throw new AppError(
-      'The verification email could not be sent. Please try resending the code.',
+      failureMessage,
       502,
-      AUTH_ERROR.EMAIL_SEND_FAILED,
+      errorCode,
     );
   }
 }
@@ -84,7 +103,11 @@ export async function sendVerificationEmail(email, code) {
 }
 
 export async function sendPasswordResetEmail(email, code) {
-  return deliverEmail(email, code, passwordResetTemplate, testResetCodes);
+  return deliverEmail(email, code, passwordResetTemplate, testResetCodes, {
+    errorCode: AUTH_ERROR.PASSWORD_RESET_EMAIL_SEND_FAILED,
+    failureMessage: 'The password reset email could not be sent. Please try again.',
+    purpose: 'password-reset',
+  });
 }
 
 export function getTestVerificationCode(email) {
