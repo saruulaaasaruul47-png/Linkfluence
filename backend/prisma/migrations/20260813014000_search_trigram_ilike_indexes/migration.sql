@@ -1,0 +1,27 @@
+DROP INDEX IF EXISTS "CreatorProfile_channelName_trgm_idx";
+DROP INDEX IF EXISTS "CreatorProfile_slug_trgm_idx";
+DROP INDEX IF EXISTS "CreatorProfile_bio_trgm_idx";
+DROP INDEX IF EXISTS "CreatorProfile_location_trgm_idx";
+DROP INDEX IF EXISTS "BusinessProfile_companyName_trgm_idx";
+DROP INDEX IF EXISTS "BusinessProfile_slug_trgm_idx";
+DROP INDEX IF EXISTS "BusinessProfile_description_trgm_idx";
+DROP INDEX IF EXISTS "BusinessProfile_industry_trgm_idx";
+DROP INDEX IF EXISTS "Campaign_title_trgm_idx";
+DROP INDEX IF EXISTS "Campaign_description_trgm_idx";
+DROP INDEX IF EXISTS "ContentPost_caption_trgm_idx";
+DROP INDEX IF EXISTS "ShowcasePost_title_trgm_idx";
+DROP INDEX IF EXISTS "ShowcasePost_description_trgm_idx";
+
+CREATE INDEX "CreatorProfile_channelName_trgm_idx" ON "CreatorProfile" USING GIN ("channelName" gin_trgm_ops);
+CREATE INDEX "CreatorProfile_slug_trgm_idx" ON "CreatorProfile" USING GIN ("slug" gin_trgm_ops);
+CREATE INDEX "CreatorProfile_bio_trgm_idx" ON "CreatorProfile" USING GIN ("bio" gin_trgm_ops);
+CREATE INDEX "CreatorProfile_location_trgm_idx" ON "CreatorProfile" USING GIN ("location" gin_trgm_ops);
+CREATE INDEX "BusinessProfile_companyName_trgm_idx" ON "BusinessProfile" USING GIN ("companyName" gin_trgm_ops);
+CREATE INDEX "BusinessProfile_slug_trgm_idx" ON "BusinessProfile" USING GIN ("slug" gin_trgm_ops);
+CREATE INDEX "BusinessProfile_description_trgm_idx" ON "BusinessProfile" USING GIN ("description" gin_trgm_ops);
+CREATE INDEX "BusinessProfile_industry_trgm_idx" ON "BusinessProfile" USING GIN ("industry" gin_trgm_ops);
+CREATE INDEX "Campaign_title_trgm_idx" ON "Campaign" USING GIN ("title" gin_trgm_ops);
+CREATE INDEX "Campaign_description_trgm_idx" ON "Campaign" USING GIN ("description" gin_trgm_ops);
+CREATE INDEX "ContentPost_caption_trgm_idx" ON "ContentPost" USING GIN ("caption" gin_trgm_ops);
+CREATE INDEX "ShowcasePost_title_trgm_idx" ON "ShowcasePost" USING GIN ("title" gin_trgm_ops);
+CREATE INDEX "ShowcasePost_description_trgm_idx" ON "ShowcasePost" USING GIN ("description" gin_trgm_ops);

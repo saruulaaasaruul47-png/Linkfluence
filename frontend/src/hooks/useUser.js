@@ -2,6 +2,7 @@ import { useCallback, useState } from 'react'
 import { parseAuthError } from '../api/authError'
 import { resolveMediaUrl } from '../api/mediaUrl'
 import { userApi } from '../api/user.api'
+import { authApi } from '../api/auth.api'
 import { useAuth } from '../context/auth-context'
 
 function normalize(user) {
@@ -36,9 +37,11 @@ export function useUser() {
     getMe: () => run(userApi.getMe),
     updateMe: (payload) => run(() => userApi.updateMe(payload)),
     uploadAvatar: (file) => run(() => userApi.uploadAvatar(file)),
+    exportMe: () => userApi.exportMe(),
     changePassword: (payload) => run(() => userApi.changePassword(payload), false),
-    deleteMe: async () => {
-      const result = await run(userApi.deleteMe, false)
+    deleteMe: async (password) => {
+      const confirmation = await authApi.reauthenticate(password)
+      const result = await run(() => userApi.deleteMe(confirmation.reauthenticationToken), false)
       clearSession()
       return result
     },

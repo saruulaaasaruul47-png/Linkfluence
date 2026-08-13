@@ -1,6 +1,7 @@
 import { createHash } from 'node:crypto';
 import { prisma } from '../../config/database.js';
 import { AppError } from '../../shared/errors/AppError.js';
+import { redisCache } from '../../infrastructure/cache/redis-cache.js';
 
 export const PLATFORM_SETTING_DEFINITIONS = Object.freeze({
   maintenance: { defaultValue: false, description: 'Temporarily pauses non-admin product mutations.' },
@@ -37,24 +38,30 @@ const cacheWrite = (key, value) => cache.set(key, { value, expiresAt: Date.now()
 
 export function clearPlatformConfigCache() {
   cache.clear();
+  void redisCache.del(...Object.keys(PLATFORM_SETTING_DEFINITIONS).map((key) => `platform:setting:${key}`), ...FEATURE_FLAG_KEYS.map((key) => `platform:flag:${key}`));
 }
 
 export async function getSetting(key, db = prisma) {
   if (!Object.hasOwn(PLATFORM_SETTING_DEFINITIONS, key)) return undefined;
   const cached = cacheRead(`setting:${key}`);
   if (cached !== undefined) return cached;
+  const distributed = await redisCache.get(`platform:setting:${key}`);
+  if (distributed !== undefined) { cacheWrite(`setting:${key}`, distributed); return distributed; }
   const row = await db.platformSetting.findUnique({ where: { key }, select: { value: true } });
   const value = row?.value ?? PLATFORM_SETTING_DEFINITIONS[key].defaultValue;
   cacheWrite(`setting:${key}`, value);
+  void redisCache.set(`platform:setting:${key}`, value, 30);
   return value;
 }
 
 export async function isFeatureEnabled(key, actor = null, db = prisma) {
   const cached = cacheRead(`flag:${key}`);
+  const distributed = cached === undefined ? await redisCache.get(`platform:flag:${key}`) : undefined;
   const flag = cached !== undefined
     ? cached
-    : await db.featureFlag.findUnique({ where: { key }, select: { enabled: true, rolloutPercentage: true, allowedRoles: true } });
+    : distributed !== undefined ? distributed : await db.featureFlag.findUnique({ where: { key }, select: { enabled: true, rolloutPercentage: true, allowedRoles: true } });
   if (cached === undefined) cacheWrite(`flag:${key}`, flag || null);
+  if (cached === undefined && distributed === undefined) void redisCache.set(`platform:flag:${key}`, flag || null, 30);
   if (!flag) return true;
   if (!flag.enabled) return false;
   let actorRoles = actor?.roles || [];

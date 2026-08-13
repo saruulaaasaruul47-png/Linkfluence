@@ -3,11 +3,14 @@ import { registerNotificationConsumers } from '../../modules/notifications/notif
 import { MemoryBroker } from './memory-broker.js';
 import { OutboxWorker } from './outbox.worker.js';
 import { RabbitMqBroker } from './rabbitmq-broker.js';
+import { BullMqBroker } from './bullmq-broker.js';
 
 export function createEventing() {
   const broker = env.rabbitMqUrl
     ? new RabbitMqBroker({ url: env.rabbitMqUrl, maxAttempts: env.queueMaxAttempts, baseDelayMs: env.queueRetryBaseMs })
-    : new MemoryBroker({ maxAttempts: env.queueMaxAttempts });
+    : env.redisUrl
+      ? new BullMqBroker({ url: env.redisUrl, maxAttempts: env.queueMaxAttempts, baseDelayMs: env.queueRetryBaseMs })
+      : new MemoryBroker({ maxAttempts: env.queueMaxAttempts });
   registerNotificationConsumers(broker);
   const worker = new OutboxWorker({ broker, maxAttempts: env.queueMaxAttempts, baseDelayMs: env.queueRetryBaseMs });
   return {

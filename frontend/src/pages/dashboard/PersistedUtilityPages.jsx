@@ -100,10 +100,17 @@ export function PortfolioPage() {
     } catch (reason) { toast(errorMessage(reason, 'Portfolio project could not be deleted.'), { type: 'error' }) }
     finally { setSaving(false) }
   }
-  const downloadKit = () => {
-    const content = ['VYRA Creator Media Kit', `Creator: ${account.creator.name}`, `Niche: ${account.creator.niche}`, `Location: ${account.creator.location}`, `Portfolio items: ${items.length}`].join('\n')
-    const url = URL.createObjectURL(new Blob([content], { type: 'text/plain' }))
-    const anchor = document.createElement('a'); anchor.href = url; anchor.download = `${account.creator.username?.replace('@', '') || 'creator'}-media-kit.txt`; anchor.click(); URL.revokeObjectURL(url)
+  const downloadKit = async () => {
+    try {
+      const response = await creatorApi.downloadMediaKit()
+      const url = URL.createObjectURL(response.data)
+      const anchor = document.createElement('a')
+      anchor.href = url
+      anchor.download = `${account.creator.username?.replace('@', '') || 'creator'}-media-kit.pdf`
+      anchor.click()
+      URL.revokeObjectURL(url)
+      toast('Media kit downloaded.', { type: 'success' })
+    } catch (reason) { toast(errorMessage(reason, 'Media kit could not be generated.'), { type: 'error' }) }
   }
   const visible = items.filter((item) => filter === 'ALL' || item.status === filter)
   const published = items.filter((item) => item.status === 'PUBLISHED').length

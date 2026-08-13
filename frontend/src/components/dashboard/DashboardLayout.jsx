@@ -119,7 +119,7 @@ export function DashboardLayout({ role }) {
   const [storyOpen,setStoryOpen]=useState(false)
   const navigate=useNavigate()
   const location=useLocation()
-  const {notifications,markNotificationRead,markAllNotificationsRead}=useCollaboration()
+  const {workspaces,notifications,markNotificationRead,markAllNotificationsRead}=useCollaboration()
   const {account}=useMarketplace()
   const {hasRole,user}=useAuth()
   const {t}=useLanguage()
@@ -137,7 +137,21 @@ export function DashboardLayout({ role }) {
     avatar:initials(user?.displayName||user?.name||user?.email,role==='creator'?'C':'B'),
     image:user?.avatarUrl||'',
   }
-  const crumbs=location.pathname.split('/').filter(Boolean).slice(1)
+  const pathSegments=location.pathname.split('/').filter(Boolean).slice(1)
+  const crumbs=pathSegments.map((segment,index)=>{
+    const previous=pathSegments[index-1]
+    const isWorkspaceId=previous==='collaborations'
+    const workspace=isWorkspaceId?workspaces.find((item)=>item.id===segment):null
+    const campaign=workspace?.campaign
+    const workspaceLabel=(typeof campaign==='string'?campaign:campaign?.title)||workspace?.campaignName||workspace?.title
+    const looksLikeId=/^[a-z0-9_-]{16,}$/i.test(segment)
+    return {
+      key:`${index}-${segment}`,
+      label:isWorkspaceId?(workspaceLabel||'Workspace'):(looksLikeId?'Details':segment.replaceAll('-',' ')),
+      path:`/${role}/${pathSegments.slice(0,index+1).join('/')}`,
+      current:index===pathSegments.length-1,
+    }
+  })
   const accent=role==='creator'?'pink':'mint'
   const hasActiveStory=activeStories.length>0
   const sidebarExpanded=sidebarPinned||sidebarHovered||sidebarFocused
@@ -189,7 +203,15 @@ export function DashboardLayout({ role }) {
     <div className={`transition-[padding] duration-300 ${sidebarPinned?'lg:pl-[17.5rem]':'lg:pl-[5.25rem]'}`}>
       <header className="dashboard-topbar">
         <button aria-label={t('common.openNavigation')} className="grid size-10 place-items-center rounded-full border border-white/10 lg:hidden" onClick={()=>setMobileOpen(true)}><Menu size={18}/></button>
-        <div className="hidden items-center gap-2 text-[10px] uppercase tracking-[.12em] text-white/30 sm:flex"><button onClick={()=>navigate(`/${role}/dashboard`)} className="capitalize">{role}</button>{crumbs.map((item)=><span key={item} className="flex items-center gap-2"><i className="not-italic text-white/15">/</i><b className="max-w-40 truncate font-medium capitalize text-white/55">{item.replaceAll('-',' ')}</b></span>)}</div>
+        <nav aria-label="Breadcrumb" className="hidden items-center gap-2 text-[10px] uppercase tracking-[.12em] text-white/30 sm:flex">
+          <button onClick={()=>navigate(`/${role}/dashboard`)} className="capitalize transition hover:text-white/70">{role}</button>
+          {crumbs.map((item)=><span key={item.key} className="flex min-w-0 items-center gap-2">
+            <i className="not-italic text-white/15">/</i>
+            {item.current
+              ? <b aria-current="page" className="max-w-52 truncate font-semibold capitalize text-white/65">{item.label}</b>
+              : <button onClick={()=>navigate(item.path)} className="max-w-40 truncate capitalize transition hover:text-white/70">{item.label}</button>}
+          </span>)}
+        </nav>
         <span className="ml-auto" />
         <DashboardNotificationMenu role={role} notifications={notifications} onRead={markNotificationRead} onReadAll={markAllNotificationsRead}/>
         <HeaderProfileMenu role={role} channels={channels} profile={profile} hasActiveStory={hasActiveStory} onOpenStory={()=>setStoryOpen(true)}/>

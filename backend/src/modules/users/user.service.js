@@ -27,6 +27,46 @@ export const userService = {
     return toUserProfile(requireUser(await userRepository.findById(userId)));
   },
 
+  async exportMe(userId) {
+    requireUser(await userRepository.findById(userId));
+    const data = await userRepository.exportById(userId);
+    return {
+      exportedAt: new Date().toISOString(),
+      formatVersion: 1,
+      account: {
+        id: data.id,
+        email: data.email,
+        username: data.username,
+        displayName: data.displayName,
+        avatarUrl: data.avatarUrl,
+        phone: data.phone,
+        location: data.location,
+        bio: data.bio,
+        roles: data.roles,
+        status: data.status,
+        emailVerifiedAt: data.emailVerifiedAt,
+        createdAt: data.createdAt,
+        updatedAt: data.updatedAt,
+      },
+      creatorProfile: data.creatorProfile,
+      businessProfile: data.businessProfile,
+      socialAccounts: data.creatorProfile?.socialAccounts || data.businessProfile?.socialAccounts || [],
+      portfolio: data.creatorProfile?.portfolioItems || [],
+      campaigns: data.businessProfile?.campaigns || [],
+      collections: data.collections,
+      follows: data.following,
+      savedItems: data.savedItems,
+      reviewsWritten: data.reviewsWritten,
+      reviewsReceived: data.reviewsReceived,
+      notifications: data.notifications,
+      conversations: data.conversationMembers.map((member) => ({
+        conversationId: member.conversationId,
+        joinedAt: member.joinedAt,
+        lastReadAt: member.lastReadAt,
+      })),
+    };
+  },
+
   async updateMe(userId, payload) {
     const current = requireUser(await userRepository.findById(userId));
     if (payload.username && payload.username !== current.username) {

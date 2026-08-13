@@ -4,6 +4,7 @@ const dataOf = (response) => response.data?.data
 
 export const userApi = {
   getMe: () => apiClient.get('/users/me').then(dataOf),
+  exportMe: () => apiClient.get('/users/me/export', { responseType: 'blob' }),
   updateMe: (payload) => apiClient.patch('/users/me', payload).then(dataOf),
   uploadAvatar: (file) => {
     const form = new FormData()
@@ -13,5 +14,7 @@ export const userApi = {
     }).then(dataOf)
   },
   changePassword: (payload) => apiClient.patch('/users/me/password', payload).then(dataOf),
-  deleteMe: () => apiClient.delete('/users/me').then(dataOf),
+  deleteMe: (reauthenticationToken) => apiClient.delete('/users/me', {
+    headers: { 'x-reauth-token': reauthenticationToken },
+  }).then(dataOf),
 }

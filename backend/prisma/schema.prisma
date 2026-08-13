@@ -19,6 +19,8 @@ model User {
   location        String?
   bio             String?
   sessionVersion  Int           @default(0)
+  failedLoginAttempts Int       @default(0)
+  lockedUntil       DateTime?
   roles           UserRole[]    @default([VIEWER])
   status          AccountStatus @default(PENDING_VERIFICATION)
   emailVerifiedAt DateTime?
@@ -29,6 +31,7 @@ model User {
 
   creatorProfile             CreatorProfile?
   businessProfile            BusinessProfile?
+  businessMemberships        BusinessMember[]
   authTokens                 AuthToken[]
   authIdentities             AuthIdentity[]
   verificationCodes          VerificationCode[]
@@ -54,6 +57,8 @@ model User {
   reportedCases              TrustCase[]             @relation("CaseReporter")
   assignedCases              TrustCase[]             @relation("CaseAssignee")
   adminActions               AdminAction[]           @relation("AdminActor")
+  permissions                UserPermission[]        @relation("PermissionSubject")
+  permissionGrants           UserPermission[]        @relation("PermissionGrantor")
   platformSettingsUpdated    PlatformSetting[]       @relation("PlatformSettingUpdater")
   featureFlagsUpdated        FeatureFlag[]           @relation("FeatureFlagUpdater")
   moderatedContentPosts      ContentPost[]           @relation("ContentPostModerator")
@@ -213,12 +218,32 @@ model BusinessProfile {
   contentPosts        ContentPost[]        @relation("ContentPostBusinessAuthor")
   partnerContentPosts ContentPost[]        @relation("ContentPostPartnerBusiness")
   socialAccounts      SocialAccount[]
+  members             BusinessMember[]
 
   @@index([verificationStatus, createdAt])
   @@index([companyName])
   @@index([industry])
   @@index([location])
   @@index([ratingAverage])
+}
+
+model BusinessMember {
+  id         String                 @id @default(cuid())
+  businessId String
+  userId     String
+  role       BusinessMemberRole     @default(MEMBER)
+  status     BusinessMemberStatus   @default(INVITED)
+  invitedBy String?
+  joinedAt   DateTime?
+  createdAt  DateTime               @default(now())
+  updatedAt  DateTime               @updatedAt
+
+  business BusinessProfile @relation(fields: [businessId], references: [id], onDelete: Cascade)
+  user     User            @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@unique([businessId, userId])
+  @@index([userId, status])
+  @@index([businessId, role, status])
 }
 
 model SocialAccount {
@@ -1573,6 +1598,31 @@ model AdminAction {
   @@index([targetType, targetId, createdAt])
 }
 
+model Permission {
+  id          String           @id @default(cuid())
+  key         String           @unique
+  description String?
+  userGrants  UserPermission[]
+  createdAt   DateTime         @default(now())
+  updatedAt   DateTime         @updatedAt
+}
+
+model UserPermission {
+  id           String   @id @default(cuid())
+  userId       String
+  permissionId String
+  grantedById  String?
+  createdAt    DateTime @default(now())
+
+  user       User       @relation("PermissionSubject", fields: [userId], references: [id], onDelete: Cascade)
+  permission Permission @relation(fields: [permissionId], references: [id], onDelete: Cascade)
+  grantedBy  User?      @relation("PermissionGrantor", fields: [grantedById], references: [id], onDelete: SetNull)
+
+  @@unique([userId, permissionId])
+  @@index([permissionId, createdAt])
+  @@index([grantedById, createdAt])
+}
+
 // Non-secret operational configuration. Secrets remain environment variables
 // and are deliberately not represented by this model or its admin API.
 model PlatformSetting {
@@ -1643,6 +1693,20 @@ enum UserRole {
   CREATOR
   BUSINESS
   ADMIN
+}
+
+enum BusinessMemberRole {
+  OWNER
+  ADMIN
+  CAMPAIGN_MANAGER
+  FINANCE
+  MEMBER
+}
+
+enum BusinessMemberStatus {
+  INVITED
+  ACTIVE
+  SUSPENDED
 }
 
 enum AuthProvider {

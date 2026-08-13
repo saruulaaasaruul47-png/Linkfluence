@@ -4,7 +4,7 @@ export default function BlurText({ children, className = '', delay = 0 }) {
   const words = String(children).split(' ');
 
   return (
-    <span className={`blur-text ${className}`} aria-label={children}>
+    <span className={`blur-text ${className}`} role="text" aria-label={children}>
       {words.map((word, index) => (
         <motion.span
           aria-hidden="true"

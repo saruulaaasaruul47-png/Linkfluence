@@ -1,7 +1,7 @@
 import { ArrowRight, CalendarDays, CheckCircle2, Clock3, FolderKanban, Sparkles, UserRound } from 'lucide-react'
 import { useNavigate } from 'react-router-dom'
 import { DashboardHeader, DashboardPage } from '../../components/dashboard/DashboardUI'
-import { Avatar, AuroraBackground, Badge, Button, EmptyState, SpotlightCard } from '../../components/ui'
+import { Avatar, Badge, EmptyState } from '../../components/ui'
 import { useCollaboration } from '../../context/collaboration-context'
 
 const statusMeta = {
@@ -21,15 +21,11 @@ function formatDate(value) {
 }
 
 function formatMoney(value) {
-  return typeof value === 'number' ? `${new Intl.NumberFormat('mn-MN').format(value)}₮` : value
+  return typeof value === 'number' ? `${new Intl.NumberFormat('mn-MN').format(value)}₮` : (value || 'Not set')
 }
 
 function initials(name = '') {
   return name.split(' ').map((part) => part[0]).join('').slice(0, 2)
-}
-
-function workspaceCover(workspace) {
-  return workspace.creator?.avatar || workspace.business?.avatar
 }
 
 export function CollaborationListPage({ role }) {
@@ -42,7 +38,7 @@ export function CollaborationListPage({ role }) {
       <DashboardHeader
         eyebrow={`${role} · Shared workspace`}
         title="Collaborations"
-        copy="Approved partnerships live here from detailed negotiation through delivery, review, and showcase."
+        copy="Approved partnerships live here from negotiation through delivery, review, and showcase."
         action={workspaces.length ? <Badge variant={accent}>{workspaces.length} workspace{workspaces.length === 1 ? '' : 's'}</Badge> : null}
       />
 
@@ -50,28 +46,28 @@ export function CollaborationListPage({ role }) {
         <EmptyState
           title="No collaboration workspaces yet"
           description={role === 'business'
-            ? 'A workspace appears only after you approve an interested response or counter proposal.'
-            : 'A workspace appears only after the business approves your response.'}
+            ? 'A workspace appears after you approve an interested response or counter proposal.'
+            : 'A workspace appears after the business approves your response.'}
           action={role === 'business' ? 'Review incoming responses' : 'Review work requests'}
           onAction={() => navigate(role === 'business' ? '/business/responses' : '/creator/work-requests')}
         />
       ) : (
-        <section className="relative overflow-hidden rounded-[2rem] border border-white/10 bg-white/[.018] p-3 sm:p-4">
-          <AuroraBackground tone={accent} className="opacity-55" />
-          <div className="relative grid gap-5 [grid-template-columns:repeat(auto-fit,minmax(min(30rem,100%),1fr))]">
+        <section className="rounded-2xl border border-white/[.08] bg-white/[.012] p-3">
+          <div className="grid grid-cols-1 gap-3 sm:grid-cols-2 xl:grid-cols-4">
             {workspaces.map((workspace) => {
               const partner = role === 'business' ? workspace.creator : workspace.business
-              const meta = statusMeta[workspace.status] || { label: workspace.status.replaceAll('_', ' '), variant: 'outline' }
-              const completedTasks = workspace.tasks.filter((task) => task.done).length
-              const cover = workspaceCover(workspace)
-              const panelTint = role === 'business'
-                ? 'from-mint/90 via-mint/75 to-mint/55'
-                : 'from-pink/90 via-pink/75 to-pink/55'
+              const meta = statusMeta[workspace.status] || {
+                label: workspace.status?.replaceAll('_', ' ') || 'Workspace',
+                variant: 'outline',
+              }
+              const completedTasks = workspace.tasks?.filter((task) => task.done).length || 0
+              const taskCount = workspace.tasks?.length || 0
+              const accentColor = role === 'business' ? 'bg-mint' : 'bg-pink'
+              const accentText = role === 'business' ? 'text-mint' : 'text-pink'
               const openWorkspace = () => navigate(`/${role}/collaborations/${workspace.id}`)
 
               return (
-                <SpotlightCard
-                  as="article"
+                <article
                   key={workspace.id}
                   role="button"
                   tabIndex={0}
@@ -83,92 +79,75 @@ export function CollaborationListPage({ role }) {
                       openWorkspace()
                     }
                   }}
-                  className="group relative min-h-[23.5rem] min-w-0 cursor-pointer overflow-hidden rounded-[1.65rem] border border-white/15 bg-[#171717] shadow-[0_22px_80px_rgba(0,0,0,.34)] transition duration-500 hover:-translate-y-1 hover:border-white/35"
+                  className="relative min-w-0 cursor-pointer overflow-hidden rounded-2xl border border-white/[.1] bg-[#151515] outline-none focus-visible:border-white/35"
                 >
-                  {cover && (
-                    <img
-                      src={cover}
-                      alt=""
-                      className="absolute inset-x-0 top-0 h-[68%] w-full object-cover opacity-78 transition duration-700 group-hover:scale-[1.045] group-hover:opacity-90"
-                    />
-                  )}
-                  <div className="absolute inset-0 bg-gradient-to-b from-black/20 via-black/8 to-black/80" />
-                  <div className="absolute inset-x-0 top-0 h-1/2 bg-gradient-to-b from-black/55 to-transparent" />
+                  <span className={`absolute inset-x-0 top-0 h-0.5 ${accentColor}`} aria-hidden="true" />
 
-                  <div className="absolute inset-x-4 top-4 flex items-start justify-between gap-3">
-                    <div className="flex min-w-0 items-center gap-3 rounded-full border border-white/20 bg-black/30 p-1.5 pr-4 backdrop-blur-xl">
+                  <div className="relative flex items-center justify-between gap-2 border-b border-white/[.07] px-3 py-2.5">
+                    <div className="flex min-w-0 items-center gap-2">
                       <Avatar
-                        src={partner.avatar}
-                        fallback={initials(partner.name)}
-                        className={`size-11 shrink-0 ${role === 'business' ? 'bg-pink' : 'bg-mint'}`}
+                        src={partner?.avatar}
+                        fallback={initials(partner?.name)}
+                        className={`size-8 shrink-0 ${role === 'business' ? 'bg-pink' : 'bg-mint'} text-[10px] text-black`}
                       />
                       <span className="min-w-0">
-                        <span className="flex items-center gap-1.5 text-[10px] font-bold uppercase tracking-[.14em] text-white/45">
-                          <UserRound size={12} />
-                          Partner
+                        <span className="flex items-center gap-1 text-[8px] font-bold uppercase tracking-[.12em] text-white/35">
+                          <UserRound size={9} /> Partner
                         </span>
-                        <strong className="block max-w-44 truncate text-sm">{partner.name}</strong>
+                        <strong className="block truncate text-xs">{partner?.name || 'Collaboration partner'}</strong>
                       </span>
                     </div>
-                    <Badge variant={meta.variant} className="shrink-0 shadow-[0_10px_30px_rgba(0,0,0,.22)]">{meta.label}</Badge>
+                    <Badge variant={meta.variant} className="shrink-0 px-2 py-0.5 text-[8px]">{meta.label}</Badge>
                   </div>
 
-                  <div className={`absolute inset-x-0 bottom-0 rounded-t-[1.35rem] border-t border-white/30 bg-gradient-to-br ${panelTint} p-4 text-black shadow-[0_-24px_70px_rgba(0,0,0,.28)] backdrop-blur-2xl sm:p-5`}>
-                    <div className="flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between">
-                      <div className="min-w-0">
-                        <p className="flex items-center gap-1.5 text-[10px] font-black uppercase tracking-[.15em] text-black/45">
-                          <Sparkles size={12} />
-                          Shared project
-                        </p>
-                        <h2 className="mt-1 line-clamp-2 max-w-xl text-[clamp(1.55rem,3vw,2.5rem)] font-black leading-[.92] tracking-[-.06em]">
-                          {workspace.campaign.title}
-                        </h2>
-                      </div>
-                      <Button
-                        size="sm"
-                        className="min-h-10 shrink-0 border border-black/10 bg-black/85 px-4 text-white shadow-[0_14px_34px_rgba(0,0,0,.25)] hover:bg-black"
-                        variant="secondary"
-                        onClick={(event) => {
-                          event.stopPropagation()
-                          openWorkspace()
-                        }}
-                      >
-                        Open
-                        <ArrowRight size={14} />
-                      </Button>
-                    </div>
+                  <div className="relative p-3">
+                    <p className={`flex items-center gap-1 text-[8px] font-black uppercase tracking-[.14em] ${accentText}`}>
+                      <Sparkles size={9} /> Shared project
+                    </p>
+                    <h2 className="mt-1 line-clamp-1 text-base font-black leading-tight tracking-[-.025em] text-white">
+                      {workspace.campaign.title}
+                    </h2>
 
-                    <div className="mt-4 grid gap-2 sm:grid-cols-3">
-                      <div className="rounded-2xl border border-black/10 bg-white/[.18] p-3">
-                        <span className="text-[10px] font-black uppercase tracking-[.12em] text-black/45">Budget</span>
-                        <strong className="mt-1.5 block truncate text-sm">{formatMoney(workspace.terms.budget)}</strong>
+                    <div className="mt-2.5 grid grid-cols-3 divide-x divide-white/[.08] border-y border-white/[.07] py-2">
+                      <div className="min-w-0 pr-2">
+                        <span className="block text-[7px] font-bold uppercase tracking-[.1em] text-white/35">Budget</span>
+                        <strong className="mt-0.5 block truncate text-[10px] text-white/85">{formatMoney(workspace.terms?.budget)}</strong>
                       </div>
-                      <div className="rounded-2xl border border-black/10 bg-white/[.18] p-3">
-                        <span className="text-[10px] font-black uppercase tracking-[.12em] text-black/45">Deadline</span>
-                        <strong className="mt-1.5 flex items-center gap-1.5 truncate text-sm"><CalendarDays size={13} />{formatDate(workspace.nextDeadline)}</strong>
+                      <div className="min-w-0 px-2">
+                        <span className="block text-[7px] font-bold uppercase tracking-[.1em] text-white/35">Deadline</span>
+                        <strong className="mt-0.5 flex items-center gap-1 truncate text-[10px] text-white/85">
+                          <CalendarDays size={9} className="shrink-0" /> {formatDate(workspace.nextDeadline)}
+                        </strong>
                       </div>
-                      <div className="rounded-2xl border border-black/10 bg-white/[.18] p-3">
-                        <span className="text-[10px] font-black uppercase tracking-[.12em] text-black/45">Tasks</span>
-                        <strong className="mt-1.5 flex items-center gap-1.5 truncate text-sm"><CheckCircle2 size={13} />{completedTasks}/{workspace.tasks.length}</strong>
+                      <div className="min-w-0 pl-2">
+                        <span className="block text-[7px] font-bold uppercase tracking-[.1em] text-white/35">Tasks</span>
+                        <strong className="mt-0.5 flex items-center gap-1 truncate text-[10px] text-white/85">
+                          <CheckCircle2 size={9} className="shrink-0" /> {completedTasks}/{taskCount}
+                        </strong>
                       </div>
                     </div>
 
-                    <div className="mt-4">
-                      <div className="mb-1.5 flex items-center justify-between text-[11px] font-bold">
-                        <span className="flex items-center gap-1.5 text-black/50"><Clock3 size={12} />Workspace progress</span>
-                        <strong>{workspace.progress}%</strong>
+                    <div className="mt-2.5">
+                      <div className="mb-1 flex items-center justify-between text-[9px] font-bold">
+                        <span className="flex items-center gap-1 text-white/40"><Clock3 size={9} /> Progress</span>
+                        <strong className="text-white/75">{workspace.progress}%</strong>
                       </div>
-                      <div className="h-1.5 overflow-hidden rounded-full bg-black/20">
-                        <div className="h-full rounded-full bg-black shadow-[0_0_18px_rgba(0,0,0,.28)]" style={{ width: `${workspace.progress}%` }} />
+                      <div className="h-0.5 overflow-hidden rounded-full bg-white/[.08]">
+                        <div className={`h-full ${accentColor}`} style={{ width: `${workspace.progress}%` }} />
                       </div>
                     </div>
 
-                    <div className="mt-4 flex min-w-0 items-center gap-2 border-t border-black/10 pt-3 text-xs font-semibold text-black/55">
-                      <FolderKanban size={14} className="shrink-0" />
-                      <span className="truncate">{workspace.activity[0]?.text || 'Workspace ready'}</span>
+                    <div className="mt-2.5 flex min-w-0 items-center justify-between gap-2 border-t border-white/[.07] pt-2.5">
+                      <span className="flex min-w-0 items-center gap-1 text-[9px] text-white/35">
+                        <FolderKanban size={10} className="shrink-0" />
+                        <span className="truncate">{workspace.activity?.[0]?.text || 'Workspace ready'}</span>
+                      </span>
+                      <span className={`flex shrink-0 items-center gap-1 text-[9px] font-bold ${accentText}`}>
+                        Open <ArrowRight size={10} />
+                      </span>
                     </div>
                   </div>
-                </SpotlightCard>
+                </article>
               )
             })}
           </div>

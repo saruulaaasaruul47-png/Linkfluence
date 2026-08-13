@@ -4,6 +4,8 @@ import { prisma } from './config/database.js';
 import { env } from './config/env.js';
 import { createEventing } from './infrastructure/eventing/index.js';
 import { closeRealtime, setupRealtime } from './infrastructure/realtime/realtime.gateway.js';
+import { redisCache } from './infrastructure/cache/redis-cache.js';
+import { closeErrorReporter, initializeErrorReporter } from './infrastructure/monitoring/error-reporter.js';
 
 const server = createServer(app);
 const eventing = createEventing();
@@ -11,6 +13,7 @@ let databaseConnected = false;
 let realtimeStarted = false;
 let eventingStarted = false;
 let shuttingDown = false;
+initializeErrorReporter();
 
 // On Windows, watch mode can release the previous child process a little later than the file change.
 const DEVELOPMENT_PORT_RETRY_INTERVAL_MS = 250;
@@ -92,6 +95,8 @@ async function closeRuntime() {
     realtimeStarted = false;
   }
   try { await closeHttpServer(); } catch (error) { failures.push(error); }
+  try { await redisCache.close(); } catch (error) { failures.push(error); }
+  try { await closeErrorReporter(); } catch (error) { failures.push(error); }
   if (databaseConnected) {
     try { await prisma.$disconnect(); } catch (error) { failures.push(error); }
     databaseConnected = false;

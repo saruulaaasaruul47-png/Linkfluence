@@ -1,7 +1,7 @@
 import { createHash } from 'node:crypto';
 import { env } from '../../config/env.js';
 import { AppError } from '../../shared/errors/AppError.js';
-import { localMediaStorage } from './local-storage.adapter.js';
+import { mediaStorage, mediaStorageIsRemote } from './media-storage.js';
 import { detectMedia } from './media.magic.js';
 import { toMediaAsset } from './media.mapper.js';
 import { mediaRepository } from './media.repository.js';
@@ -49,10 +49,11 @@ export const mediaService = {
       throw new AppError('A campaign brief must be an image or PDF document.', 400, 'CAMPAIGN_BRIEF_TYPE_INVALID');
     }
 
-    const stored = await localMediaStorage.save({
+    const stored = await mediaStorage.save({
       ownerId,
       extension: detected.extension,
       buffer: file.buffer,
+      mimeType: detected.mimeType,
     });
     try {
       const asset = await mediaRepository.create({
@@ -67,7 +68,7 @@ export const mediaService = {
       });
       return toMediaAsset(asset);
     } catch (error) {
-      await localMediaStorage.remove(stored.storageKey);
+      await mediaStorage.remove(stored.storageKey);
       throw error;
     }
   },
@@ -132,7 +133,10 @@ export const mediaService = {
     if (!isPublic && asset.ownerId !== userId && !participant) {
       throw new AppError('Media asset was not found.', 404, 'MEDIA_NOT_FOUND');
     }
-    return { path: localMediaStorage.resolve(asset.storageKey), mimeType: asset.mimeType, originalName: asset.originalName };
+    if (mediaStorageIsRemote) {
+      return { redirectUrl: await mediaStorage.signedReadUrl(asset.storageKey), mimeType: asset.mimeType, originalName: asset.originalName };
+    }
+    return { path: mediaStorage.resolve(asset.storageKey), mimeType: asset.mimeType, originalName: asset.originalName };
   },
 
   async remove(ownerId, assetId) {
@@ -142,7 +146,7 @@ export const mediaService = {
     if (removed.count !== 1) {
       throw new AppError('Media used by an active portfolio item cannot be deleted.', 409, 'MEDIA_IN_USE');
     }
-    await localMediaStorage.remove(asset.storageKey);
+    await mediaStorage.remove(asset.storageKey);
     return null;
   },
   async signedDownload(userId, assetId) {

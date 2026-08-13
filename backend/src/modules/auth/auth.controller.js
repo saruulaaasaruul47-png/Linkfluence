@@ -109,4 +109,8 @@ export const authController = {
     const user = await authService.getCurrentUser(req.user.id);
     sendSuccess(res, 200, 'Current user retrieved successfully.', { user });
   }),
+  reauthenticate: asyncHandler(async (req, res) => {
+    const result = await authService.reauthenticate(req.user.id, req.validated.body.password);
+    sendSuccess(res, 200, 'Identity confirmed successfully.', result);
+  }),
 };

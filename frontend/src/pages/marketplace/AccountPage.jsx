@@ -1,5 +1,5 @@
 import { useState } from 'react'
-import { ArrowUpRight, Building2, Check, ChevronRight, Plus, Save, Trash2, TriangleAlert, UserRound } from 'lucide-react'
+import { ArrowUpRight, Building2, Check, ChevronRight, Download, Plus, Save, Trash2, TriangleAlert, UserRound } from 'lucide-react'
 import { Link, useNavigate, useSearchParams } from 'react-router-dom'
 import { Badge, Button, Dialog, FileUpload, Input, Select, Textarea, useToast } from '../../components/ui'
 import { useMarketplace } from '../../context/marketplace-context'
@@ -140,6 +140,7 @@ export default function AccountPage() {
   const [params, setParams] = useSearchParams()
   const [deleteTarget, setDeleteTarget] = useState(null)
   const [deleting, setDeleting] = useState(false)
+  const [deletionPassword, setDeletionPassword] = useState('')
   const requestedChannel = params.get('channel')
   const channel = channels.some((item) => item.id === requestedChannel) ? requestedChannel : 'account'
   const { toast } = useToast()
@@ -207,16 +208,29 @@ export default function AccountPage() {
     toast(`${type[0].toUpperCase()}${type.slice(1)} channel deleted.`, { type: 'success' })
   }
   const deleteAccount = async () => {
-    await userProfile.deleteMe()
+    await userProfile.deleteMe(deletionPassword)
     navigate('/register', { replace: true })
   }
+  const exportAccount = async () => {
+    try {
+      const response = await userProfile.exportMe()
+      const url = URL.createObjectURL(response.data)
+      const anchor = document.createElement('a')
+      anchor.href = url
+      anchor.download = `influence-hub-account-${new Date().toISOString().slice(0, 10)}.json`
+      anchor.click()
+      URL.revokeObjectURL(url)
+      toast('Account data exported.', { type: 'success' })
+    } catch (error) { toast(error.message || 'Account data could not be exported.', { type: 'error' }) }
+  }
   const confirmDeletion = async () => {
-    if (!deleteTarget || deleting) return
+    if (!deleteTarget || deleting || (deleteTarget === 'account' && !deletionPassword)) return
     setDeleting(true)
     try {
       if (deleteTarget === 'account') await deleteAccount()
       else await deactivateChannel(deleteTarget)
       setDeleteTarget(null)
+      setDeletionPassword('')
     } catch (error) {
       toast(error.message || 'This item could not be deleted.', { type: 'error' })
     } finally {
@@ -224,7 +238,10 @@ export default function AccountPage() {
     }
   }
   const closeDeleteDialog = () => {
-    if (!deleting) setDeleteTarget(null)
+    if (!deleting) {
+      setDeleteTarget(null)
+      setDeletionPassword('')
+    }
   }
   const deletingAccount = deleteTarget === 'account'
   const deleteLabel = deletingAccount ? 'Delete account' : `Delete ${deleteTarget || ''} channel`
@@ -265,7 +282,7 @@ export default function AccountPage() {
 
         {channel !== 'account' && hasRole(channel) && <div className={`flex flex-col justify-between gap-4 rounded-2xl p-5 text-black sm:flex-row sm:items-center ${channel === 'creator' ? 'bg-pink-soft' : 'bg-mint-soft'}`}><span><strong className="block">Continue developing your {channel} channel</strong><small className="mt-1 block opacity-60">Manage content, collaborations, messages and analytics in its workspace.</small></span><Link to={`/${channel}/dashboard`} className="inline-flex min-h-11 items-center justify-center gap-2 rounded-full bg-black px-5 text-sm font-semibold text-white transition hover:opacity-85">Open dashboard <ChevronRight size={15} /></Link></div>}
 
-        {channel === 'account' && <div className="flex justify-end border-t border-white/[.07] pt-4"><Button size="sm" variant="ghost" className="text-[#ff6b82] hover:bg-[#ff6b82]/10 hover:text-[#ff8da0]" disabled={userProfile.loading} onClick={() => setDeleteTarget('account')}><Trash2 size={13} />Delete account</Button></div>}
+        {channel === 'account' && <div className="flex justify-end gap-2 border-t border-white/[.07] pt-4"><Button size="sm" variant="outline" disabled={userProfile.loading} onClick={exportAccount}><Download size={13} />Export data</Button><Button size="sm" variant="ghost" className="text-[#ff6b82] hover:bg-[#ff6b82]/10 hover:text-[#ff8da0]" disabled={userProfile.loading} onClick={() => setDeleteTarget('account')}><Trash2 size={13} />Delete account</Button></div>}
       </div>
     </div>
 
@@ -283,9 +300,10 @@ export default function AccountPage() {
         <p className="text-xs font-semibold text-white/85">{deletingAccount ? 'This action affects your whole account.' : `Your ${deleteTarget || ''} channel will no longer be visible.`}</p>
         <p className="mt-1.5 text-[11px] leading-5 text-white/40">{deletingAccount ? 'Your personal account, creator and business channels, and active sessions will be removed. This cannot be undone.' : 'Your personal account and your other channel will remain active. This action cannot be undone.'}</p>
       </div>
+      {deletingAccount && <div className="mt-4"><Input label="Confirm your password" type="password" autoComplete="current-password" value={deletionPassword} onChange={(event) => setDeletionPassword(event.target.value)} required help="A five-minute security confirmation protects this sensitive action." /></div>}
       <div className="mt-5 flex flex-col-reverse gap-2 sm:flex-row sm:justify-end">
         <Button variant="outline" onClick={closeDeleteDialog} disabled={deleting} className="sm:min-w-28">Cancel</Button>
-        <Button variant="danger" onClick={confirmDeletion} loading={deleting} className="sm:min-w-36"><Trash2 size={14} />{deleteLabel}</Button>
+        <Button variant="danger" onClick={confirmDeletion} loading={deleting} disabled={deletingAccount && !deletionPassword} className="sm:min-w-36"><Trash2 size={14} />{deleteLabel}</Button>
       </div>
     </Dialog>
   </main>

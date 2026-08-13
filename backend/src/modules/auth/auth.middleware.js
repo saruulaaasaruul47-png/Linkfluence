@@ -29,3 +29,14 @@ export async function optionalAuthenticate(req, _res, next) {
     next(error);
   }
 }
+
+export function requireReauthentication(req, _res, next) {
+  try {
+    const token = req.get('x-reauth-token');
+    if (!token) throw new AppError('Recent password confirmation is required.', 401, 'REAUTHENTICATION_REQUIRED');
+    authService.verifyReauthentication(token, req.user);
+    next();
+  } catch (error) {
+    next(error);
+  }
+}

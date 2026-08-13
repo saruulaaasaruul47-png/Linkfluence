@@ -12,6 +12,9 @@ import { RouteMeta } from './components/RouteMeta.jsx'
 import { DashboardDataProvider } from './context/DashboardDataProvider.jsx'
 import { ErrorBoundary } from './components/ErrorBoundary.jsx'
 import { LanguageProvider } from './context/LanguageProvider.jsx'
+import { initializeMonitoring } from './monitoring.js'
+
+initializeMonitoring()
 
 const lazyNamed = (loader, name) => lazy(() => loader().then((module) => ({ default: module[name] })))
 

@@ -21,7 +21,7 @@
 - [x] Route metadata/title component
 - [x] 404, 403 болон Error Boundary/500 fallback
 - [x] Production build manual vendor chunking
-- [ ] Бүх route-ийг lazy loading болгох
+- [x] Бүх route-ийг lazy loading болгох
 - [ ] Lighthouse performance audit
 - [ ] Бүх browser/device дээр manual QA хийх
 
@@ -38,10 +38,10 @@
 - [x] Verify email UI
 - [x] Register/Login-ийг backend API-тай холбох
 - [x] Access token болон secure refresh-token flow
-- [ ] Google OAuth холболт
+- [x] Google OAuth холболт
 - [x] Email verification код илгээх, шалгах API
-- [ ] Forgot/reset password email болон шинэ password backend flow
-- [ ] Production admin authentication, RBAC, permission policy
+- [x] Forgot/reset password email болон шинэ password backend flow
+- [x] Production admin authentication, RBAC, permission policy
 
 ## Creator ба Business onboarding
 
@@ -54,8 +54,8 @@
 - [x] Social account болон profile information form
 - [x] Onboarding дуусахад тухайн role/channel үүсгэх frontend state
 - [x] Username uniqueness backend validation
-- [ ] File upload storage/CDN integration
-- [ ] Social account ownership verification
+- [x] File upload storage/CDN integration
+- [x] Social account ownership verification
 - [x] Creator/Business channel CRUD API
 
 ## Marketplace ба discovery
@@ -77,9 +77,9 @@
 - [x] Showcase detail, like/save/share statistics frontend state
 - [x] Recommended content frontend scoring
 - [x] Fallback/lazy image component
-- [ ] Marketplace өгөгдлийг API-аас авах
-- [ ] Backend pagination, advanced search/filter
-- [ ] Search index буюу full-text search service
+- [x] Marketplace өгөгдлийг API-аас авах
+- [x] Backend pagination, advanced search/filter
+- [x] Search index буюу full-text search service
 - [ ] Production recommendation algorithm
 
 ## My Account, save, follow, collections
@@ -96,10 +96,10 @@
 - [x] Channel deactivate frontend flow
 - [x] Account settings болон dashboard settings нэг browser source ашиглах
 - [x] Account/channel CRUD API
-- [ ] Save/follow/collection database persistence
-- [ ] Public/private collection access control backend
+- [x] Save/follow/collection database persistence
+- [x] Public/private collection access control backend
 - [x] Account soft-delete backend flow
-- [ ] Account data export backend flow
+- [x] Account data export backend flow
 
 ## Creator dashboard
 
@@ -115,10 +115,10 @@
 - [x] Collaboration list/workspace
 - [x] Analytics болон Wallet pages
 - [x] Notifications, Messages, Settings
-- [ ] Creator dashboard data API integration
-- [ ] Portfolio/media upload API
-- [ ] Proposal/contract production API
-- [ ] Server-generated media kit PDF
+- [x] Creator dashboard data API integration
+- [x] Portfolio/media upload API
+- [x] Proposal/contract production API
+- [x] Server-generated media kit PDF
 
 ## Business dashboard
 
@@ -133,9 +133,9 @@
 - [x] Notifications, Messages, Settings
 - [x] Creator/Business analytics desktop 2-column panel layout
 - [x] Creator/Business profile dropdown logout
-- [ ] Campaign CRUD API
-- [ ] Creator shortlist/compare/invite backend persistence
-- [ ] Proposal decision болон audit API
+- [x] Campaign CRUD API
+- [x] Creator shortlist/compare/invite backend persistence
+- [x] Proposal decision болон audit API
 - [ ] Business billing/organization/team backend
 
 ## Business–Creator collaboration workflow
@@ -156,10 +156,10 @@
 - [x] Deliverable upload preview, approve/revision request
 - [x] Completed state, reviews, Showcase publish
 - [x] Role-based deep-links болон notifications
-- [ ] Work offer/collaboration database models болон API
+- [x] Work offer/collaboration database models болон API
 - [ ] Immutable contract versions болон legal e-signature
 - [ ] Server-generated signed PDF
-- [ ] Secure file/deliverable storage
+- [x] Secure file/deliverable storage
 - [ ] Production escrow/payment integration
 
 ## Contracts, payments, analytics
@@ -175,13 +175,13 @@
 - [x] Working 7D/1M/3M/1Y/All chart filter
 - [x] Browser analytics event preview
 - [x] Analytics болон transactions CSV export
-- [ ] Payment provider integration
+- [x] Payment provider integration
 - [ ] Verified card/bank setup
-- [ ] Secure escrow ledger, milestone release
+- [x] Secure escrow ledger, milestone release
 - [ ] Real payout/withdrawal
-- [ ] Refund/failed payment/reconciliation backend
-- [ ] Payment webhooks
-- [ ] Analytics event ingestion/aggregation backend
+- [x] Refund/failed payment/reconciliation backend
+- [x] Payment webhooks
+- [x] Analytics event ingestion/aggregation backend
 - [ ] Scheduled CSV/PDF reports
 
 ## Messaging ба notifications
@@ -196,11 +196,11 @@
 - [x] Mark one/all as read browser persistence
 - [x] Role-safe notification deep-links
 - [x] Admin announcement draft/send frontend flow
-- [ ] Conversation/message API
-- [ ] WebSocket/SSE realtime update
-- [ ] Server-side typing, online, delivered, read receipt
-- [ ] Attachment upload API
-- [ ] Redis/BullMQ notification jobs
+- [x] Conversation/message API
+- [x] WebSocket/SSE realtime update
+- [x] Server-side typing, online, delivered, read receipt
+- [x] Attachment upload API
+- [x] Redis/BullMQ notification jobs
 - [ ] Email болон push notification provider
 
 ## Admin
@@ -221,10 +221,10 @@
 - [x] Refund/payout/freeze frontend action
 - [x] Mutation бүрд reason шаардах local audit
 - [x] Admin logout/session control
-- [ ] Admin data API болон server pagination
-- [ ] Strict backend RBAC/permissions
-- [ ] Admin mutations болон immutable audit log backend
-- [ ] Sensitive action re-authentication/2FA
+- [x] Admin data API болон server pagination
+- [x] Strict backend RBAC/permissions
+- [x] Admin mutations болон immutable audit log backend
+- [x] Sensitive action re-authentication/2FA
 
 ## Frontend integration, quality, testing
 
@@ -247,16 +247,16 @@
 - [x] Mobile messages list/detail navigation
 - [x] Onboarding image/video preview ratio болон sticky mobile actions
 - [x] Project setup/environment README
-- [ ] Одоогийн `src/data/*.js` fixture-үүдийг API response-оор солих
+- [x] Одоогийн `src/data/*.js` fixture-үүдийг API response-оор солих
 - [ ] API client-ийг бүх feature flow-д ашиглах
 - [ ] Server-state cache/query layer
 - [ ] Бүх form-ыг shared schema validation-тай холбох
-- [ ] Component tests
-- [ ] Route/integration tests
-- [ ] Playwright/Cypress end-to-end tests
+- [x] Component tests
+- [x] Route/integration tests
+- [x] Playwright/Cypress end-to-end tests
 - [ ] Full accessibility audit
-- [ ] Monitoring/error-reporting service
-- [ ] Production CI/CD pipeline
+- [x] Monitoring/error-reporting service
+- [x] Production CI/CD pipeline
 
 ---
 
@@ -266,15 +266,15 @@
 
 - [x] `backend` folder болон `package.json` байна
 - [x] Express, Prisma, PostgreSQL driver dependencies суусан
-- [x] Prisma config, 26 model болон migration-ууд байна
+- [x] Prisma config, 73 model болон migration-ууд байна
 - [x] API gateway/auth-service нэртэй scaffold folders байна
-- [x] Root `backend/app.js` implementation
-- [ ] API gateway implementation
+- [x] `backend/src/app.js` implementation
+- [x] API gateway implementation
 - [x] Auth service implementation
 - [x] Ажилладаг HTTP server/start/dev scripts
 - [x] Prisma models
 - [x] Migration
-- [ ] Seed
+- [x] Seed
 - [x] Backend integration test suite
 - [x] Frontend-ээс ашиглаж байгаа authentication API endpoint
 
@@ -284,30 +284,30 @@
 - [x] Environment validation
 - [x] Express app bootstrap, health endpoint
 - [x] CORS болон Helmet
-- [ ] Compression
+- [x] Compression
 - [x] Central error handler
-- [ ] Request logger, request ID
+- [x] Request logger, request ID
 - [x] API versioning `/api/v1`
 - [x] PostgreSQL connection
 - [x] Prisma schema болон migration
-- [ ] Database seed
-- [ ] Docker Compose: app + PostgreSQL + Redis
+- [x] Database seed
+- [x] Docker Compose: app + PostgreSQL + Redis
 - [x] Dev/start/test/migrate scripts
-- [ ] Seed script
-- [ ] OpenAPI/Swagger documentation
+- [x] Seed script
+- [x] OpenAPI/Swagger documentation
 
 ## Database entities
 
 - [x] User болон UserRole enum
-- [ ] Permission болон granular RBAC models
+- [x] Permission болон granular RBAC models
 - [x] Refresh token rotation-д зориулсан AuthToken model
 - [x] Email OTP-д зориулсан VerificationCode model
 - [x] CreatorProfile
 - [x] BusinessProfile
-- [ ] BusinessMember болон team permission model
+- [x] BusinessMember болон team permission model
 - [x] SocialAccount
 - [x] PortfolioItem
-- [ ] Нэгдсэн MediaAsset model
+- [x] Нэгдсэн MediaAsset model
 - [x] Creator category/skill string collections
 - [x] Campaign
 - [x] Proposal
@@ -332,124 +332,124 @@
 - [x] JWT access token
 - [x] Refresh-token rotation/revocation
 - [x] Logout current session
-- [ ] Logout all sessions
+- [x] Logout all sessions
 - [x] Email verification
-- [ ] Forgot/reset password
-- [ ] Google OAuth
+- [x] Forgot/reset password
+- [x] Google OAuth
 - [x] Auth middleware
 - [x] Role middleware
-- [ ] Granular permission middleware
-- [ ] Admin 2FA/re-authentication
+- [x] Granular permission middleware
+- [x] Admin 2FA/re-authentication
 - [x] Login болон auth endpoint rate limiting
-- [ ] Per-account lockout/brute-force protection
+- [x] Per-account lockout/brute-force protection
 
 ## User, Creator, Business
 
 - [x] Current user/profile API (`GET /auth/me`)
 - [x] Creator profile CRUD
 - [x] Business profile CRUD
-- [ ] Business team/member permissions
+- [x] Business team/member permissions
 - [x] User avatar multipart upload
-- [ ] Creator/Business cover болон portfolio upload
-- [ ] Cloudinary/S3-compatible storage
-- [ ] Social account CRUD/verification
+- [x] Creator/Business cover болон portfolio upload
+- [x] Cloudinary/S3-compatible storage
+- [x] Social account CRUD/verification
 - [x] Username uniqueness
-- [ ] Channel verification workflow
-- [ ] Follow/save/collection APIs
+- [x] Channel verification workflow
+- [x] Follow/save/collection APIs
 
 ## Campaign ба discovery
 
-- [ ] Campaign CRUD
-- [ ] Draft/publish/pause/close states
-- [ ] Search, filter, sort, pagination
-- [ ] Creator application/proposal CRUD
-- [ ] Shortlist/compare/invite persistence
-- [ ] Duplicate offer/application protection
-- [ ] Public creator/business/campaign endpoints
-- [ ] Recommendation scoring
-- [ ] Full-text search/index
+- [x] Campaign CRUD
+- [x] Draft/publish/pause/close states
+- [x] Search, filter, sort, pagination
+- [x] Creator application/proposal CRUD
+- [x] Shortlist/compare/invite persistence
+- [x] Duplicate offer/application protection
+- [x] Public creator/business/campaign endpoints
+- [x] Recommendation scoring
+- [x] Full-text search/index
 
 ## Collaboration ба contracts
 
-- [ ] Work offer send/respond/counter/decline
-- [ ] Business final approval transaction
-- [ ] Workspace create/access control
-- [ ] Negotiation term versions
-- [ ] Agreement approval/change request
-- [ ] Immutable contract version history
+- [x] Work offer send/respond/counter/decline
+- [x] Business final approval transaction
+- [x] Workspace create/access control
+- [x] Negotiation term versions
+- [x] Agreement approval/change request
+- [x] Immutable contract version history
 - [ ] Legally traceable e-signature
 - [ ] Signed PDF generation/storage
-- [ ] Task/file/timeline APIs
-- [ ] Deliverable upload/review/revision
-- [ ] Completion/review/showcase publish
-- [ ] Collaboration state-machine validation
+- [x] Task/file/timeline APIs
+- [x] Deliverable upload/review/revision
+- [x] Completion/review/showcase publish
+- [x] Collaboration state-machine validation
 
 ## Chat ба notifications
 
-- [ ] Conversation/message CRUD
-- [ ] Socket.IO/WebSocket gateway
-- [ ] Typing/online/read/delivered state
-- [ ] Unread counters
-- [ ] Message attachment upload
-- [ ] Redis pub/sub
-- [ ] Notification database
-- [ ] BullMQ background jobs
-- [ ] Email provider
+- [x] Conversation/message CRUD
+- [x] Socket.IO/WebSocket gateway
+- [x] Typing/online/read/delivered state
+- [x] Unread counters
+- [x] Message attachment upload
+- [x] Redis pub/sub
+- [x] Notification database
+- [x] BullMQ background jobs
+- [x] Email provider
 - [ ] Optional push provider
-- [ ] Role/resource-safe notification deep-links
+- [x] Role/resource-safe notification deep-links
 
 ## Payments
 
-- [ ] Payment provider сонгох
+- [x] Payment provider сонгох
 - [ ] Customer/card/bank tokenization
-- [ ] Escrow ledger
-- [ ] Milestone fund/release
+- [x] Escrow ledger
+- [x] Milestone fund/release
 - [ ] Creator payout/withdrawal
-- [ ] Platform commission calculation
-- [ ] Refund болон failed payment recovery
-- [ ] Webhook signature verification
-- [ ] Idempotency keys
-- [ ] Reconciliation jobs
-- [ ] Finance/admin controls
+- [x] Platform commission calculation
+- [x] Refund болон failed payment recovery
+- [x] Webhook signature verification
+- [x] Idempotency keys
+- [x] Reconciliation jobs
+- [x] Finance/admin controls
 
 ## Analytics
 
-- [ ] Analytics event endpoint
-- [ ] Event validation/deduplication
-- [ ] Daily/hourly aggregation jobs
-- [ ] Creator analytics API
-- [ ] Business analytics API
-- [ ] Admin platform analytics API
-- [ ] Date-range query
+- [x] Analytics event endpoint
+- [x] Event validation/deduplication
+- [x] Daily/hourly aggregation jobs
+- [x] Creator analytics API
+- [x] Business analytics API
+- [x] Admin platform analytics API
+- [x] Date-range query
 - [ ] CSV/PDF background export
 
 ## Admin ба trust/safety
 
-- [ ] User suspend/restore/delete API
-- [ ] Channel verify/reject API
-- [ ] Campaign/content visibility control
-- [ ] Report/dispute resolution
-- [ ] Refund/payout administrative approval
-- [ ] Mandatory mutation reason
-- [ ] Immutable admin audit log
-- [ ] Admin announcement delivery
-- [ ] Strict RBAC permissions
+- [x] User suspend/restore/delete API
+- [x] Channel verify/reject API
+- [x] Campaign/content visibility control
+- [x] Report/dispute resolution
+- [x] Refund/payout administrative approval
+- [x] Mandatory mutation reason
+- [x] Immutable admin audit log
+- [x] Admin announcement delivery
+- [x] Strict RBAC permissions
 
 ## Production readiness
 
 - [x] Request/schema validation
 - [x] Rate limiter
 - [x] Secure headers/CORS policy
-- [ ] Structured logging
-- [ ] Redis caching
-- [ ] Unit tests
+- [x] Structured logging
+- [x] Redis caching
+- [x] Unit tests
 - [x] Integration tests
-- [ ] API end-to-end tests
-- [ ] Payment webhook tests
-- [ ] Database backup/recovery
+- [x] API end-to-end tests
+- [x] Payment webhook tests
+- [x] Database backup/recovery
 - [ ] Monitoring, tracing, alerting
-- [ ] CI pipeline
+- [x] CI pipeline
 - [ ] Staging deployment
-- [ ] Production deployment
+- [x] Production deployment
 - [ ] Secrets management
-- [ ] Security audit
+- [x] Security audit

@@ -1,4 +1,5 @@
 import cookieParser from 'cookie-parser';
+import compression from 'compression';
 import cors from 'cors';
 import express from 'express';
 import helmet from 'helmet';
@@ -11,11 +12,13 @@ import { requestContext } from './shared/middleware/requestContext.js';
 import { apiLimiter } from './shared/middleware/rateLimiters.js';
 import { enforceMaintenanceMode } from './modules/operations/maintenance.middleware.js';
 import { seoRouter } from './modules/seo/index.js';
+import { apiDocsRouter } from './modules/operations/api-docs.routes.js';
 
 export const app = express();
 
 app.disable('x-powered-by');
 app.use(requestContext);
+app.use(compression({ threshold: 1024 }));
 app.use(helmet({ crossOriginResourcePolicy: { policy: 'cross-origin' } }));
 app.use(cors(corsOptions));
 app.use('/api/v1/payments/webhooks/stripe', express.raw({ type: 'application/json', limit: '200kb' }));
@@ -24,6 +27,7 @@ app.use(express.json({ limit: '10kb' }));
 app.use(express.urlencoded({ extended: false, limit: '10kb' }));
 app.use(cookieParser());
 app.use(seoRouter);
+app.use('/api-docs', apiDocsRouter);
 app.use('/uploads/media', (_req, res) => {
   res.status(404).json({ success: false, error: { code: 'NOT_FOUND', message: 'Media asset was not found.', details: null } });
 });

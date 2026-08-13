@@ -196,7 +196,15 @@ describe('Sprint 2 profile APIs', () => {
   });
 
   test('soft deletes the account and prevents another login', async () => {
-    const remove = await authenticated().delete('/api/v1/users/me');
+    const reauthenticate = await authenticated()
+      .post('/api/v1/auth/reauthenticate')
+      .send({ password: changedPassword });
+    assert.equal(reauthenticate.status, 200);
+    assert.ok(reauthenticate.body.data.reauthenticationToken);
+
+    const remove = await authenticated()
+      .delete('/api/v1/users/me')
+      .set('x-reauth-token', reauthenticate.body.data.reauthenticationToken);
     assert.equal(remove.status, 200);
     assert.ok([401, 403].includes((await authenticated().get('/api/v1/users/me')).status));
 

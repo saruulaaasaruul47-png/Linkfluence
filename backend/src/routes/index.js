@@ -37,6 +37,7 @@ import { creatorSocialRouter, socialConnectionRouter } from '../modules/social-s
 import { contentRouter } from '../modules/content/index.js';
 import { safetyRouter } from '../modules/safety/index.js';
 import { healthRouter } from '../modules/operations/index.js';
+import { accessControlRouter } from '../modules/access-control/index.js';
 
 export const apiRouter = Router();
 
@@ -89,4 +90,5 @@ apiRouter.use('/payments', paymentRouter);
 apiRouter.use('/conversations', messagingRouter);
 apiRouter.use('/notifications', notificationRouter);
 apiRouter.use('/analytics', analyticsRouter);
+apiRouter.use('/admin/access-control', accessControlRouter);
 apiRouter.use('/admin', adminRouter);

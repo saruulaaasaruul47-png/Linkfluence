@@ -64,6 +64,15 @@ const schema = z.object({
   MEDIA_SIGNING_SECRET: z.string().min(32).optional(),
   MEDIA_SIGNED_URL_TTL_SECONDS: z.coerce.number().int().min(30).max(3600).default(300),
   SLOW_REQUEST_THRESHOLD_MS: z.coerce.number().int().min(10).max(60000).default(750),
+  MEDIA_STORAGE_DRIVER: z.enum(['local', 's3']).default('local'),
+  S3_REGION: z.string().optional().default(''),
+  S3_BUCKET: z.string().optional().default(''),
+  S3_ENDPOINT: z.string().url().optional(),
+  S3_ACCESS_KEY_ID: z.string().optional().default(''),
+  S3_SECRET_ACCESS_KEY: z.string().optional().default(''),
+  S3_FORCE_PATH_STYLE: booleanFromString,
+  SENTRY_DSN: z.string().url().optional(),
+  SENTRY_TRACES_SAMPLE_RATE: z.coerce.number().min(0).max(1).default(0.1),
 });
 
 const result = schema.safeParse(process.env);
@@ -117,6 +126,12 @@ if (result.data.NODE_ENV === 'production') {
     if (result.data.META_WEBHOOK_VERIFY_TOKEN.length < 32) {
       errors.push('META_WEBHOOK_VERIFY_TOKEN must contain at least 32 characters when SOCIAL_PROVIDER_MODE=meta');
     }
+  }
+  if (result.data.MEDIA_STORAGE_DRIVER === 's3') {
+    if (!result.data.S3_REGION) errors.push('S3_REGION is required when MEDIA_STORAGE_DRIVER=s3');
+    if (!result.data.S3_BUCKET) errors.push('S3_BUCKET is required when MEDIA_STORAGE_DRIVER=s3');
+    if (!result.data.S3_ACCESS_KEY_ID) errors.push('S3_ACCESS_KEY_ID is required when MEDIA_STORAGE_DRIVER=s3');
+    if (!result.data.S3_SECRET_ACCESS_KEY) errors.push('S3_SECRET_ACCESS_KEY is required when MEDIA_STORAGE_DRIVER=s3');
   }
   if (errors.length) {
     throw new Error(`Invalid production environment configuration: ${errors.join('; ')}`);
@@ -183,4 +198,13 @@ export const env = {
   mediaSigningSecret: result.data.MEDIA_SIGNING_SECRET || result.data.JWT_ACCESS_SECRET,
   mediaSignedUrlTtlSeconds: result.data.MEDIA_SIGNED_URL_TTL_SECONDS,
   slowRequestThresholdMs: result.data.SLOW_REQUEST_THRESHOLD_MS,
+  mediaStorageDriver: result.data.MEDIA_STORAGE_DRIVER,
+  s3Region: result.data.S3_REGION,
+  s3Bucket: result.data.S3_BUCKET,
+  s3Endpoint: result.data.S3_ENDPOINT,
+  s3AccessKeyId: result.data.S3_ACCESS_KEY_ID,
+  s3SecretAccessKey: result.data.S3_SECRET_ACCESS_KEY,
+  s3ForcePathStyle: result.data.S3_FORCE_PATH_STYLE,
+  sentryDsn: result.data.SENTRY_DSN,
+  sentryTracesSampleRate: result.data.SENTRY_TRACES_SAMPLE_RATE,
 };

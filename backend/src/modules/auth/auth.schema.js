@@ -66,6 +66,10 @@ export const loginSchema = requestEnvelope(
     .strict(),
 );
 
+export const reauthenticateSchema = requestEnvelope(
+  z.object({ password: z.string({ error: 'Password is required.' }).min(1).max(200) }).strict(),
+);
+
 export const googleLoginSchema = requestEnvelope(
   z.object({
     credential: z

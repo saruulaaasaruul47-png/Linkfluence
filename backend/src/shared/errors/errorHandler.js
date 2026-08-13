@@ -2,6 +2,7 @@ import { Prisma } from '@prisma/client';
 import { env } from '../../config/env.js';
 import { AUTH_ERROR } from '../constants/auth.constants.js';
 import { AppError } from './AppError.js';
+import { reportError } from '../../infrastructure/monitoring/error-reporter.js';
 
 function normalizeError(error) {
   if (error instanceof AppError) return error;
@@ -54,6 +55,12 @@ export function errorHandler(error, req, res, _next) {
   const normalized = normalizeError(error);
 
   if (!normalized.isOperational || normalized.statusCode >= 500) {
+    reportError(error, {
+      requestId: req.requestId,
+      method: req.method,
+      path: req.originalUrl,
+      userId: req.user?.id,
+    });
     console.error({
       name: error?.name,
       code: normalized.code,

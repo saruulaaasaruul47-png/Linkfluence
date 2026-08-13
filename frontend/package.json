@@ -10,10 +10,12 @@
     "test": "node --test test/*.test.mjs && vitest run",
     "check": "npm run lint && npm run test && npm run build && npm run check:bundle",
     "check:bundle": "node scripts/check-bundle-budget.mjs",
+    "test:e2e": "playwright test",
     "preview": "vite preview"
   },
   "dependencies": {
     "@calendarjs/ce": "^1.1.0",
+    "@sentry/react": "^10.70.0",
     "@tailwindcss/vite": "^4.3.3",
     "axios": "^1.18.1",
     "lucide-react": "^1.25.0",
@@ -25,7 +27,9 @@
     "tailwindcss": "^4.3.3"
   },
   "devDependencies": {
+    "@axe-core/playwright": "^4.13.0",
     "@eslint/js": "^10.0.1",
+    "@playwright/test": "^1.62.1",
     "@testing-library/jest-dom": "^7.0.0",
     "@testing-library/react": "^16.3.2",
     "@testing-library/user-event": "^14.6.1",

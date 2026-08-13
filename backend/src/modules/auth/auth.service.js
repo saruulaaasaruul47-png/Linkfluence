@@ -10,7 +10,9 @@ import {
 import { AppError } from '../../shared/errors/AppError.js';
 import {
   signPasswordResetToken,
+  signReauthenticationToken,
   verifyAccessToken,
+  verifyReauthenticationToken,
   verifyPasswordResetToken,
 } from '../../shared/utils/jwt.js';
 import { generateOtp, otpExpiresAt } from '../../shared/utils/otp.js';
@@ -169,10 +171,14 @@ export const authService = {
 
   async login(payload, context) {
     const user = await authRepository.findUserByEmail(payload.email);
+    if (user?.lockedUntil && user.lockedUntil > new Date()) {
+      throw new AppError('This account is temporarily locked after repeated failed sign-in attempts.', 423, 'ACCOUNT_LOCKED', { retryAt: user.lockedUntil });
+    }
     const passwordMatches = user?.passwordHash && !user.deletedAt
       ? await comparePassword(payload.password, user.passwordHash)
       : false;
     if (!user || !passwordMatches) {
+      if (user && !user.deletedAt) await authRepository.registerFailedLogin(user.id, { threshold: 5, lockMinutes: 15 });
       throw new AppError('Invalid email or password.', 401, AUTH_ERROR.INVALID_CREDENTIALS);
     }
     assertActiveUser(user);
@@ -355,6 +361,33 @@ export const authService = {
     return toSafeUser(user);
   },
 
+  async reauthenticate(userId, password) {
+    const user = await authRepository.findUserById(userId);
+    assertActiveUser(user);
+    if (!user.passwordHash || !(await comparePassword(password, user.passwordHash))) {
+      throw new AppError('Password is incorrect.', 401, AUTH_ERROR.INVALID_CREDENTIALS);
+    }
+    return {
+      reauthenticationToken: signReauthenticationToken(user),
+      expiresInSeconds: 300,
+    };
+  },
+
+  verifyReauthentication(token, authenticatedUser) {
+    try {
+      const payload = verifyReauthenticationToken(token);
+      if (typeof payload === 'string'
+        || payload.type !== 'reauth'
+        || payload.sub !== authenticatedUser.id
+        || (payload.sessionVersion ?? 0) !== (authenticatedUser.sessionVersion ?? 0)) {
+        throw new Error('Invalid reauthentication token.');
+      }
+      return true;
+    } catch {
+      throw new AppError('Recent password confirmation is required.', 401, 'REAUTHENTICATION_REQUIRED');
+    }
+  },
+
   async authenticateAccessToken(accessToken) {
     let payload;
     try {
@@ -373,6 +406,12 @@ export const authService = {
     if ((payload.sessionVersion ?? 0) !== user.sessionVersion) {
       throw new AppError('The access token is no longer active.', 401, AUTH_ERROR.INVALID_TOKEN);
     }
-    return { id: user.id, email: user.email, roles: user.roles };
+    return {
+      id: user.id,
+      email: user.email,
+      roles: user.roles,
+      sessionVersion: user.sessionVersion,
+      permissions: user.permissions?.map(({ permission }) => permission.key) ?? [],
+    };
   },
 };

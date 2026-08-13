@@ -9,6 +9,7 @@ export function toSafeUser(user) {
     location: user.location,
     bio: user.bio,
     roles: user.roles,
+    permissions: user.permissions?.map(({ permission }) => permission.key) ?? [],
     status: user.status,
     emailVerified: Boolean(user.emailVerifiedAt),
     lastSeenAt: user.lastSeenAt,

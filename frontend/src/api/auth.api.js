@@ -8,18 +8,21 @@ const delay = (milliseconds) => new Promise((resolve) => setTimeout(resolve, mil
 
 async function waitForApi() {
   let lastError
-  for (const waitMs of [0, 350, 700, 1_200]) {
-    if (waitMs) await delay(waitMs)
+  const deadline = Date.now() + 12_000
+
+  while (Date.now() < deadline) {
     try {
-      await apiClient.get('/health', { timeout: 2_500 })
+      await apiClient.get('/health', { timeout: 2_000 })
       return
     } catch (error) {
       lastError = error
       // A real HTTP response proves the API is reachable. Login should proceed
       // so the backend can return its own validation or authorization error.
       if (error.response) return
+      if (Date.now() < deadline) await delay(500)
     }
   }
+
   throw lastError
 }
 
@@ -68,8 +71,15 @@ export async function resetPassword(payload) {
   return responseData(await apiClient.post('/auth/reset-password', payload))
 }
 
-export async function getCurrentUser() {
-  return responseData(await apiClient.get('/auth/me'))
+export async function getCurrentUser(accessToken) {
+  const config = accessToken
+    ? { headers: { Authorization: `Bearer ${accessToken}` } }
+    : undefined
+  return responseData(await apiClient.get('/auth/me', config))
+}
+
+export async function reauthenticate(password) {
+  return responseData(await apiClient.post('/auth/reauthenticate', { password }))
 }
 
 export const authApi = {
@@ -85,4 +95,5 @@ export const authApi = {
   verifyResetOtp,
   resetPassword,
   getCurrentUser,
+  reauthenticate,
 }

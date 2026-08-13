@@ -8,5 +8,6 @@ export const creatorRouter = Router();
 creatorRouter.use(authenticate);
 creatorRouter.post('/profile', validate(createCreatorSchema), creatorController.create);
 creatorRouter.get('/profile', creatorController.get);
+creatorRouter.get('/media-kit.pdf', creatorController.mediaKit);
 creatorRouter.patch('/profile', validate(updateCreatorSchema), creatorController.update);
 creatorRouter.delete('/profile', creatorController.remove);

@@ -245,4 +245,14 @@ export const messagingService = {
     realtimeGateway.conversation(id, 'message:read', { conversationId: id, userId, readAt: new Date().toISOString() });
     return null;
   },
+  async delivered(userId, id) {
+    await membership(id, userId);
+    const deliveredAt = new Date().toISOString();
+    const result = await messagingRepository.transaction((tx) => tx.message.updateMany({
+      where: { conversationId: id, senderId: { not: userId }, status: 'SENT', deletedAt: null },
+      data: { status: 'DELIVERED' },
+    }));
+    if (result.count) realtimeGateway.conversation(id, 'message:delivered', { conversationId: id, userId, deliveredAt });
+    return { count: result.count, deliveredAt };
+  },
 };

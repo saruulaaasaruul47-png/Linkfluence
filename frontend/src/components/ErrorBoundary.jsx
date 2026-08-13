@@ -2,6 +2,7 @@ import { Component } from 'react'
 import { AlertTriangle, RefreshCw } from 'lucide-react'
 import { BrandLogo } from './BrandLogo'
 import { Button } from './ui'
+import { reportFrontendError } from '../monitoring'
 
 export class ErrorBoundary extends Component {
   constructor(props) {
@@ -14,6 +15,7 @@ export class ErrorBoundary extends Component {
   }
 
   componentDidCatch(error, info) {
+    reportFrontendError(error, { componentStack: info.componentStack })
     window.dispatchEvent(new CustomEvent('vyra:frontend-error', { detail: { message: error.message, componentStack: info.componentStack } }))
   }
 

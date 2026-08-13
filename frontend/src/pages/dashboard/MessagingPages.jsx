@@ -79,9 +79,13 @@ export function MessagesPage() {
   const [requestMode, setRequestMode] = useState(Boolean(location.state?.showRequests))
   const [requestsLoading, setRequestsLoading] = useState(true)
   const [decidingId, setDecidingId] = useState(null)
+  const [typingUserIds, setTypingUserIds] = useState([])
+  const [onlineUserIds, setOnlineUserIds] = useState([])
   const messagesEndRef = useRef(null)
   const composerRef = useRef(null)
   const conversationSearchRef = useRef(null)
+  const socketRef = useRef(null)
+  const typingTimerRef = useRef(null)
 
   const attachmentPreview = useMemo(() => (
     attachmentFile?.type.startsWith('image/') ? URL.createObjectURL(attachmentFile) : ''
@@ -163,6 +167,7 @@ export function MessagesPage() {
   useEffect(() => {
     if (!activeId) return undefined
     const socket = createRealtimeClient()
+    socketRef.current = socket
     const merge = (message) => {
       setMessages((items) => items.some((item) => item.id === message.id) ? items.map((item) => item.id === message.id ? message : item) : [...items, message])
       updateConversationLastMessage(activeId, message)
@@ -178,10 +183,33 @@ export function MessagesPage() {
       setMessages((items) => items.filter((item) => item.id !== event.messageId))
       setConversations((items) => items.map((item) => item.id === activeId && item.lastMessage?.id === event.messageId ? { ...item, lastMessage: null } : item))
     })
+    socket.on('message:delivered', (event) => {
+      if (event.conversationId !== activeId) return
+      setMessages((items) => items.map((message) => message.senderId === event.userId || message.status !== 'SENT' ? message : { ...message, status: 'DELIVERED' }))
+    })
+    socket.on('message:read', (event) => {
+      if (event.conversationId !== activeId) return
+      setMessages((items) => items.map((message) => message.senderId === event.userId ? message : { ...message, status: 'READ' }))
+    })
+    socket.on('typing:changed', (event) => {
+      if (event.conversationId !== activeId) return
+      setTypingUserIds((ids) => event.typing ? [...new Set([...ids, event.userId])] : ids.filter((id) => id !== event.userId))
+    })
+    socket.on('presence:snapshot', (event) => {
+      if (event.conversationId === activeId) setOnlineUserIds(event.users.filter((item) => item.online).map((item) => item.userId))
+    })
+    socket.on('presence:changed', (event) => {
+      setOnlineUserIds((ids) => event.online ? [...new Set([...ids, event.userId])] : ids.filter((id) => id !== event.userId))
+    })
     socket.connect()
     return () => {
+      window.clearTimeout(typingTimerRef.current)
+      socket.emit('typing:set', { conversationId: activeId, typing: false })
       socket.emit('conversation:leave', { conversationId: activeId })
       socket.disconnect()
+      socketRef.current = null
+      setTypingUserIds([])
+      setOnlineUserIds([])
     }
   }, [activeId, toast, updateConversationLastMessage])
 
@@ -191,6 +219,13 @@ export function MessagesPage() {
   }, [activeId, messages.length, threadLoading])
 
   const activeConversation = useMemo(() => conversations.find((item) => item.id === activeId), [conversations, activeId])
+  const peerOnline = Boolean(activeConversation?.peers.some((peer) => onlineUserIds.includes(peer.id)))
+  const announceTyping = () => {
+    if (!activeId || !socketRef.current) return
+    socketRef.current.emit('typing:set', { conversationId: activeId, typing: true })
+    window.clearTimeout(typingTimerRef.current)
+    typingTimerRef.current = window.setTimeout(() => socketRef.current?.emit('typing:set', { conversationId: activeId, typing: false }), 1200)
+  }
   const openConversation = (id) => { setActiveId(id); setMobileThreadOpen(true) }
   const decideRequest = async (requestId, action) => {
     setDecidingId(requestId)
@@ -296,7 +331,7 @@ export function MessagesPage() {
       </aside>
       <section className={`${mobileThreadOpen ? 'flex' : 'hidden lg:flex'} relative h-full min-h-0 min-w-0 flex-col overflow-hidden bg-[radial-gradient(circle_at_50%_10%,rgba(255,118,189,.055),transparent_34%)]`}>
         {activeConversation ? <>
-          <header className="flex min-h-[4.5rem] items-center gap-3 border-b border-white/[.08] bg-[#101010]/90 px-4 py-3 backdrop-blur-xl sm:px-5"><button type="button" className="grid size-9 place-items-center rounded-full text-white/60 transition hover:bg-white/[.06] hover:text-white lg:hidden" onClick={()=>setMobileThreadOpen(false)} aria-label="Back to conversations"><ArrowLeft size={17}/></button><Avatar size="md" src={activeConversation.peers[0]?.avatarUrl} fallback={activeConversation.peers[0]?.name}/><div className="min-w-0 flex-1"><strong className="block truncate text-sm tracking-[-.01em]">{activeConversation.title || activeConversation.peers[0]?.name}</strong><small className="mt-0.5 block truncate text-[10px] text-white/35">{activeConversation.collaboration?.campaign ? `Campaign · ${activeConversation.collaboration.campaign}` : 'Private conversation'}</small></div>{activeConversation.collaboration && <span className="hidden rounded-full border border-mint/20 bg-mint/[.08] px-3 py-1.5 text-[9px] font-bold uppercase tracking-[.12em] text-mint sm:block">Collaboration</span>}</header>
+          <header className="flex min-h-[4.5rem] items-center gap-3 border-b border-white/[.08] bg-[#101010]/90 px-4 py-3 backdrop-blur-xl sm:px-5"><button type="button" className="grid size-9 place-items-center rounded-full text-white/60 transition hover:bg-white/[.06] hover:text-white lg:hidden" onClick={()=>setMobileThreadOpen(false)} aria-label="Back to conversations"><ArrowLeft size={17}/></button><span className="relative"><Avatar size="md" src={activeConversation.peers[0]?.avatarUrl} fallback={activeConversation.peers[0]?.name}/>{peerOnline&&<i className="absolute bottom-0 right-0 size-2.5 rounded-full border-2 border-[#101010] bg-mint" aria-label="Online"/>}</span><div className="min-w-0 flex-1"><strong className="block truncate text-sm tracking-[-.01em]">{activeConversation.title || activeConversation.peers[0]?.name}</strong><small className={`mt-0.5 block truncate text-[10px] ${peerOnline?'text-mint/70':'text-white/35'}`}>{typingUserIds.length?'Typing…':peerOnline?'Online':activeConversation.collaboration?.campaign ? `Campaign · ${activeConversation.collaboration.campaign}` : 'Private conversation'}</small></div>{activeConversation.collaboration && <span className="hidden rounded-full border border-mint/20 bg-mint/[.08] px-3 py-1.5 text-[9px] font-bold uppercase tracking-[.12em] text-mint sm:block">Collaboration</span>}</header>
           <div className="min-h-0 flex-1 overscroll-contain overflow-y-auto px-3 py-5 sm:px-6">
             {threadLoading ? <div className="space-y-4">{[1,2,3].map((item)=><Skeleton key={item} className={`h-16 rounded-2xl ${item === 2 ? 'ml-auto w-1/2' : 'w-2/3'}`}/>)}</div>
               : messages.length ? messages.map((message, index) => {
@@ -315,7 +350,7 @@ export function MessagesPage() {
                           {videoAttachment && <video src={message.attachment.url} controls preload="metadata" className="max-h-80 w-full min-w-[14rem] bg-black"/>}
                           {message.attachment && !imageAttachment && !videoAttachment && <a href={message.attachment.url} target="_blank" rel="noreferrer" className="m-2.5 flex min-w-[13rem] items-center gap-3 rounded-xl border border-current/15 bg-black/[.06] p-3 transition hover:bg-black/10"><span className="grid size-9 shrink-0 place-items-center rounded-lg bg-current/10"><FileText size={16}/></span><span className="min-w-0"><strong className="block truncate text-[11px]">{message.attachment.name || 'Attachment'}</strong><small className="mt-1 block opacity-50">Open file</small></span></a>}
                           {message.body && <p className="whitespace-pre-wrap break-words px-3.5 pt-2.5 leading-5 last:pb-2.5">{message.body}</p>}
-                          <span className={`flex items-center justify-end gap-1 px-3.5 pb-2 text-[8px] ${mine ? 'text-black/50' : 'text-white/30'}`}><time>{formatMessageTime(message.createdAt)}</time>{message.editedAt && <span>· edited</span>}{mine && <CheckCheck size={11}/>}</span>
+                          <span className={`flex items-center justify-end gap-1 px-3.5 pb-2 text-[8px] ${mine ? 'text-black/50' : 'text-white/30'}`}><time>{formatMessageTime(message.createdAt)}</time>{message.editedAt && <span>· edited</span>}{mine && <CheckCheck size={11} className={message.status==='READ'?'text-blue-700':''}/>}</span>
                         </>}
                       </div>
                       {mine && !editing && <div className="flex translate-x-1 gap-0.5 opacity-0 transition group-hover:translate-x-0 group-hover:opacity-100 group-focus-within:translate-x-0 group-focus-within:opacity-100"><button type="button" onClick={()=>setEditing({id:message.id,body:message.body || ''})} disabled={!message.body} aria-label="Edit message" className="grid size-8 place-items-center rounded-full text-white/35 transition hover:bg-white/[.07] hover:text-white disabled:hidden"><Edit3 size={12}/></button><button type="button" onClick={()=>remove(message.id)} aria-label="Delete message" className="grid size-8 place-items-center rounded-full text-white/35 transition hover:bg-red-400/10 hover:text-red-300"><Trash2 size={12}/></button></div>}
@@ -336,7 +371,7 @@ export function MessagesPage() {
                 <span className="sr-only">Attach a file</span><Paperclip size={14} className="block"/>
                 <input aria-label="Attach a file" type="file" accept="image/jpeg,image/png,image/gif,image/webp,video/mp4,video/quicktime,video/webm,application/pdf" className="sr-only" onChange={chooseAttachment}/>
               </label>
-              <textarea ref={composerRef} rows={1} aria-label="Message" value={draft} onChange={(event)=>{setDraft(event.target.value);event.target.style.height='auto';event.target.style.height=`${Math.min(event.target.scrollHeight,96)}px`}} onKeyDown={(event)=>{if(event.key==='Enter'&&!event.shiftKey){event.preventDefault();event.currentTarget.form?.requestSubmit()}}} placeholder="Write a message..." className="max-h-24 min-h-8 min-w-0 flex-1 resize-none bg-transparent px-1 py-2 text-[11px] leading-4 outline-none placeholder:text-white/25"/>
+              <textarea ref={composerRef} rows={1} aria-label="Message" value={draft} onChange={(event)=>{setDraft(event.target.value);announceTyping();event.target.style.height='auto';event.target.style.height=`${Math.min(event.target.scrollHeight,96)}px`}} onBlur={()=>socketRef.current?.emit('typing:set',{conversationId:activeId,typing:false})} onKeyDown={(event)=>{if(event.key==='Enter'&&!event.shiftKey){event.preventDefault();event.currentTarget.form?.requestSubmit()}}} placeholder="Write a message..." className="max-h-24 min-h-8 min-w-0 flex-1 resize-none bg-transparent px-1 py-2 text-[11px] leading-4 outline-none placeholder:text-white/25"/>
               <button type="submit" disabled={sending || (!draft.trim() && !attachmentFile)} aria-label="Send message" className="inline-flex size-8 shrink-0 items-center justify-center rounded-full bg-pink p-0 leading-none text-black shadow-[0_6px_18px_rgba(255,118,189,.22)] transition hover:bg-[#ff92c8] active:scale-95 disabled:pointer-events-none disabled:bg-white/10 disabled:text-white/25 disabled:shadow-none"><Send size={13} className={`block translate-x-px ${sending ? 'animate-pulse' : ''}`}/></button>
             </div>
           </form>

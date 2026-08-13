@@ -11,6 +11,13 @@ export const creatorController = {
     const profile = await creatorService.get(req.user.id);
     sendSuccess(res, 200, 'Creator profile retrieved successfully.', { profile });
   }),
+  mediaKit: asyncHandler(async (req, res) => {
+    const document = await creatorService.mediaKit(req.user.id);
+    res.set('Content-Type', 'application/pdf');
+    res.set('Content-Disposition', `attachment; filename="${document.filename}"`);
+    res.set('Cache-Control', 'private, no-store');
+    res.status(200).send(document.buffer);
+  }),
   update: asyncHandler(async (req, res) => {
     const profile = await creatorService.update(req.user.id, req.validated.body);
     sendSuccess(res, 200, 'Creator profile updated successfully.', { profile });

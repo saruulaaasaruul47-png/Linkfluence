@@ -3,6 +3,9 @@ import { prisma } from '../../config/database.js';
 const profileIncludes = {
   creatorProfile: { select: { id: true } },
   businessProfile: { select: { id: true } },
+  permissions: {
+    select: { permission: { select: { key: true } } },
+  },
 };
 
 export const authRepository = {
@@ -61,8 +64,22 @@ export const authRepository = {
   updateLastSeen(userId, date, db = prisma) {
     return db.user.update({
       where: { id: userId },
-      data: { lastSeenAt: date },
+      data: { lastSeenAt: date, failedLoginAttempts: 0, lockedUntil: null },
       include: profileIncludes,
+    });
+  },
+
+  registerFailedLogin(userId, { threshold, lockMinutes }, db = prisma) {
+    return db.$transaction(async (tx) => {
+      const current = await tx.user.findUnique({ where: { id: userId }, select: { failedLoginAttempts: true } });
+      if (!current) return null;
+      const attempts = current.failedLoginAttempts + 1;
+      const lockedUntil = attempts >= threshold ? new Date(Date.now() + lockMinutes * 60_000) : null;
+      return tx.user.update({
+        where: { id: userId },
+        data: { failedLoginAttempts: lockedUntil ? 0 : attempts, lockedUntil },
+        select: { failedLoginAttempts: true, lockedUntil: true },
+      });
     });
   },
 

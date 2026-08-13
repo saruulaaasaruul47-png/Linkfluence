@@ -65,23 +65,21 @@ export function AuthProvider({ children }) {
   const refreshSession = useCallback(async () => {
     const version = authVersion.current
     if (!restorePromise) {
-      restorePromise = (async () => {
-        const refreshed = await authApi.refreshAccessToken()
-        const current = await authApi.getCurrentUser()
-        return {
-          accessToken: refreshed.accessToken,
-          user: normalizeUser(current.user),
-        }
-      })().finally(() => {
+      restorePromise = authApi.refreshAccessToken().finally(() => {
         restorePromise = null
       })
     }
-    const restored = await restorePromise
-    if (version === authVersion.current) {
-      tokenStore.set(restored.accessToken)
-      setUser(restored.user)
-    }
-    return restored.user
+    const refreshed = await restorePromise
+    // Use this restore attempt's token explicitly. This prevents /auth/me from
+    // producing a guaranteed 401 while also keeping a stale restore from
+    // replacing the token of a newer login that completed in parallel.
+    const current = await authApi.getCurrentUser(refreshed.accessToken)
+    if (version !== authVersion.current) return null
+
+    const restoredUser = normalizeUser(current.user)
+    tokenStore.set(refreshed.accessToken)
+    setUser(restoredUser)
+    return restoredUser
   }, [])
 
   useEffect(() => {

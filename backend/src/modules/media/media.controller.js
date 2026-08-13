@@ -18,6 +18,7 @@ export const mediaController = {
   }),
   content: asyncHandler(async (req, res) => {
     const asset = await mediaService.delivery(req.validated.params.id, req.user?.id);
+    if (asset.redirectUrl) return res.redirect(302, asset.redirectUrl);
     res.type(asset.mimeType);
     res.set('Cache-Control', req.user ? 'private, max-age=300' : 'public, max-age=86400');
     res.set('Content-Disposition', `inline; filename="${asset.originalName.replaceAll('"', '')}"`);
@@ -34,6 +35,7 @@ export const mediaController = {
   signedContent: asyncHandler(async (req, res) => {
     const { subject, expires, signature } = req.validated.query;
     const asset = await mediaService.signedDelivery(req.validated.params.id, subject, expires, signature);
+    if (asset.redirectUrl) return res.redirect(302, asset.redirectUrl);
     res.type(asset.mimeType);
     res.set('Cache-Control', 'private, max-age=300');
     res.set('Content-Disposition', `inline; filename="${asset.originalName.replaceAll('"', '')}"`);

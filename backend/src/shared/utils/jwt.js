@@ -30,6 +30,18 @@ export function verifyAccessToken(token) {
   return jwt.verify(token, env.jwtAccessSecret);
 }
 
+export function signReauthenticationToken(user) {
+  return jwt.sign(
+    { type: 'reauth', sessionVersion: user.sessionVersion ?? 0 },
+    env.jwtAccessSecret,
+    { subject: user.id, expiresIn: '5m' },
+  );
+}
+
+export function verifyReauthenticationToken(token) {
+  return jwt.verify(token, env.jwtAccessSecret);
+}
+
 export function verifyRefreshToken(token) {
   return jwt.verify(token, env.jwtRefreshSecret);
 }

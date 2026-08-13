@@ -17,6 +17,7 @@ import {
   googleLoginSchema,
   loginSchema,
   registerSchema,
+  reauthenticateSchema,
   resendOtpSchema,
   resetPasswordSchema,
   verifyEmailSchema,
@@ -52,3 +53,4 @@ authRouter.post(
   authController.resetPassword,
 );
 authRouter.get('/me', authenticate, authController.getCurrentUser);
+authRouter.post('/reauthenticate', authenticate, validate(reauthenticateSchema), authController.reauthenticate);

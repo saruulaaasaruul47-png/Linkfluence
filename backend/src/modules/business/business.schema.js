@@ -44,3 +44,25 @@ export const createBusinessSchema = envelope(
 export const updateBusinessSchema = envelope(
   businessBody.refine((body) => Object.keys(body).length > 0, 'Provide at least one profile field.'),
 );
+
+const memberRoles = ['ADMIN', 'CAMPAIGN_MANAGER', 'FINANCE', 'MEMBER'];
+
+export const inviteBusinessMemberSchema = envelope(z.object({
+  email: z.string().trim().toLowerCase().email(),
+  role: z.enum(memberRoles).default('MEMBER'),
+}).strict());
+
+export const businessMemberIdSchema = z.object({
+  body: z.object({}).passthrough().optional().default({}),
+  params: z.object({ memberId: z.string().cuid() }),
+  query: z.object({}).passthrough(),
+});
+
+export const updateBusinessMemberSchema = z.object({
+  body: z.object({
+    role: z.enum(memberRoles).optional(),
+    status: z.enum(['ACTIVE', 'SUSPENDED']).optional(),
+  }).strict().refine((body) => Object.keys(body).length > 0, 'Provide a role or status.'),
+  params: z.object({ memberId: z.string().cuid() }),
+  query: z.object({}).passthrough(),
+});

@@ -33,6 +33,26 @@ function requireProfile(profile) {
   return profile;
 }
 
+function toMember(member) {
+  return {
+    id: member.id,
+    role: member.role,
+    status: member.status,
+    joinedAt: member.joinedAt,
+    createdAt: member.createdAt,
+    user: member.user,
+  };
+}
+
+async function requireManagedBusiness(userId) {
+  const profile = requireProfile(await businessRepository.findByUserId(userId));
+  const membership = await businessRepository.findManagerMembership(profile.id, userId);
+  if (!membership || membership.status !== 'ACTIVE' || !['OWNER', 'ADMIN'].includes(membership.role)) {
+    throw new AppError('Only a business owner or admin can manage team members.', 403, 'BUSINESS_TEAM_FORBIDDEN');
+  }
+  return { profile, membership };
+}
+
 async function assertSlugAvailable(userId, slug) {
   if (!slug) return;
   const existing = await businessRepository.findBySlug(slug);
@@ -82,5 +102,65 @@ export const businessService = {
   async remove(userId) {
     requireProfile(await businessRepository.findByUserId(userId));
     return toUserProfile(await businessRepository.remove(userId));
+  },
+
+  async listMembers(userId) {
+    const profile = requireProfile(await businessRepository.findByUserId(userId));
+    return (await businessRepository.listMembers(profile.id)).map(toMember);
+  },
+
+  async inviteMember(userId, payload) {
+    const { profile } = await requireManagedBusiness(userId);
+    const invitedUser = await businessRepository.findUserByEmail(payload.email);
+    if (!invitedUser || invitedUser.status !== 'ACTIVE') {
+      throw new AppError('An active account with this email was not found.', 404, 'BUSINESS_MEMBER_USER_NOT_FOUND');
+    }
+    if (invitedUser.id === profile.userId) {
+      throw new AppError('The business owner is already a team member.', 409, 'BUSINESS_OWNER_ALREADY_MEMBER');
+    }
+    return toMember(await businessRepository.upsertInvitation(
+      profile.id,
+      invitedUser.id,
+      payload.role,
+      userId,
+    ));
+  },
+
+  async acceptMember(userId, memberId) {
+    const member = await businessRepository.findMembership(memberId);
+    if (!member || member.userId !== userId) {
+      throw new AppError('Business invitation was not found.', 404, 'BUSINESS_INVITATION_NOT_FOUND');
+    }
+    if (member.status !== 'INVITED') {
+      throw new AppError('This business invitation is no longer pending.', 409, 'BUSINESS_INVITATION_NOT_PENDING');
+    }
+    return toMember(await businessRepository.updateMember(memberId, {
+      status: 'ACTIVE',
+      joinedAt: new Date(),
+    }));
+  },
+
+  async updateMember(userId, memberId, payload) {
+    const { profile } = await requireManagedBusiness(userId);
+    const member = await businessRepository.findMembership(memberId);
+    if (!member || member.businessId !== profile.id) {
+      throw new AppError('Business member was not found.', 404, 'BUSINESS_MEMBER_NOT_FOUND');
+    }
+    if (member.role === 'OWNER') {
+      throw new AppError('The business owner membership cannot be changed.', 409, 'BUSINESS_OWNER_IMMUTABLE');
+    }
+    return toMember(await businessRepository.updateMember(memberId, payload));
+  },
+
+  async removeMember(userId, memberId) {
+    const { profile } = await requireManagedBusiness(userId);
+    const member = await businessRepository.findMembership(memberId);
+    if (!member || member.businessId !== profile.id) {
+      throw new AppError('Business member was not found.', 404, 'BUSINESS_MEMBER_NOT_FOUND');
+    }
+    if (member.role === 'OWNER') {
+      throw new AppError('The business owner membership cannot be removed.', 409, 'BUSINESS_OWNER_IMMUTABLE');
+    }
+    await businessRepository.deleteMember(memberId);
   },
 };
