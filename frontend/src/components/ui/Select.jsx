@@ -17,6 +17,7 @@ export const Select = forwardRef(function Select({
   onChange,
   disabled = false,
   required = false,
+  menuPlacement = 'bottom',
   'aria-label': ariaLabel,
 }, ref) {
   const generatedId = useId()
@@ -58,7 +59,9 @@ export const Select = forwardRef(function Select({
     }
   }
 
-  return <div ref={rootRef} onPointerEnter={(event)=>{if(event.pointerType==='mouse'&&!disabled)setOpen(true)}} onPointerLeave={(event)=>{if(event.pointerType==='mouse')setOpen(false)}} className={cn('ui-select-root',className)}>
+  const opensUp = menuPlacement === 'top'
+
+  return <div ref={rootRef} className={cn('ui-select-root', open && 'is-open', className)}>
     {label&&<label className="ui-label" htmlFor={selectId}>{label}</label>}
     <div className="ui-select-wrap">
       <button
@@ -80,7 +83,7 @@ export const Select = forwardRef(function Select({
         <span className="block truncate">{selected?.label||placeholder}</span>
       </button>
       <span className={cn('ui-select-icon',open&&'is-open')} aria-hidden="true"><ChevronDown size={15}/></span>
-      <AnimatePresence>{open&&<motion.div id={listboxId} role="listbox" aria-label={label||ariaLabel||placeholder} className="ui-select-menu" initial={{opacity:0,y:-6,scale:.98}} animate={{opacity:1,y:6,scale:1}} exit={{opacity:0,y:-4,scale:.985}} transition={{duration:.16}}>
+      <AnimatePresence>{open&&<motion.div id={listboxId} role="listbox" aria-label={label||ariaLabel||placeholder} className={cn('ui-select-menu', opensUp && 'is-top')} initial={{opacity:0,y:opensUp?6:-6,scale:.98}} animate={{opacity:1,y:0,scale:1}} exit={{opacity:0,y:opensUp?4:-4,scale:.985}} transition={{duration:.14}}>
         <div className="ui-select-menu-scroll">{normalized.map((option,index)=>{
           const isSelected=String(option.value)===String(current)
           const isActive=index===activeIndex

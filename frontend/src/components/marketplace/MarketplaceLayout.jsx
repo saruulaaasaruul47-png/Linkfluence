@@ -1,5 +1,5 @@
 import { useState } from 'react'
-import { Bookmark, Compass, LayoutDashboard, LogOut, Menu, Settings2, Users, X } from 'lucide-react'
+import { Bookmark, Clapperboard, Compass, LayoutDashboard, LogIn, LogOut, Menu, Settings2, UserRound, Users, X } from 'lucide-react'
 import { Link, NavLink, Outlet, useLocation, useNavigate } from 'react-router-dom'
 import { AnimatePresence, motion } from 'motion/react'
 import { BrandLogo } from '../BrandLogo'
@@ -206,6 +206,19 @@ export function MarketplaceLayout() {
       </header>
 
       <Outlet />
+
+      <nav aria-label="Mobile marketplace navigation" className="marketplace-mobile-nav sm:hidden">
+        <NavLink to="/showcase" className={({isActive})=>`marketplace-mobile-nav-item ${isActive?'text-pink':'text-white/50'}`}><Clapperboard size={19}/><span>Showcase</span></NavLink>
+        <NavLink to="/discover" className={({isActive})=>`marketplace-mobile-nav-item ${isActive?'text-pink':'text-white/50'}`}><Compass size={19}/><span>{t('common.discover')}</span></NavLink>
+        {session ? <>
+          <NavLink to="/saved" className={({isActive})=>`marketplace-mobile-nav-item ${isActive?'text-pink':'text-white/50'}`}><Bookmark size={19}/><span>{t('common.saved')}</span></NavLink>
+          <NavLink to="/following" className={({isActive})=>`marketplace-mobile-nav-item ${isActive?'text-mint':'text-white/50'}`}><Users size={19}/><span>{t('common.following')}</span></NavLink>
+          <NavLink to="/account" className={({isActive})=>`marketplace-mobile-nav-item ${isActive?'text-mint':'text-white/50'}`}><UserRound size={19}/><span>{t('common.myAccount')}</span></NavLink>
+        </> : <>
+          <NavLink to="/login" className={({isActive})=>`marketplace-mobile-nav-item ${isActive?'text-pink':'text-white/50'}`}><LogIn size={19}/><span>{t('common.signIn')}</span></NavLink>
+          <NavLink to="/register" className={({isActive})=>`marketplace-mobile-nav-item ${isActive?'text-pink':'text-white/50'}`}><UserRound size={19}/><span>{t('common.getStarted')}</span></NavLink>
+        </>}
+      </nav>
 
       {!isShowcaseViewer && <footer className="mt-24 border-t border-white/10">
         <div className="mx-auto flex max-w-[1500px] flex-col justify-between gap-5 px-5 py-8 text-xs text-white/35 sm:flex-row lg:px-8">

@@ -13,12 +13,12 @@ export function AuthLayout({ eyebrow, title, scriptWord, copy, children, footer 
       <div className="soft-glow -right-20 bottom-0 size-72 bg-mint/5" />
       <BrandLogo className="relative z-10 text-white" />
       <LanguageSwitcher compact className="absolute right-5 top-5 z-20" />
-      <div className="relative z-10 max-w-3xl py-12">
+      <div className="auth-hero-copy relative z-10 max-w-3xl py-12">
         <p className="eyebrow mb-5 text-white/45">{eyebrow}</p>
         <h1 className="display-xl uppercase"><BlurText>{title}</BlurText> <span className="auth-script editorial block text-pink">{scriptWord}</span></h1>
         <p className="mt-7 max-w-lg text-sm leading-6 text-white/55">{copy}</p>
       </div>
-      <div className="relative z-10 h-40">
+      <div className="auth-preview-decor relative z-10 h-40">
         <motion.div className="floating-preview left-0 top-4 w-52 p-4" animate={{ y: [0, -8, 0], rotate: [-2, 0, -2] }} transition={{ repeat: Infinity, duration: 6, ease: 'easeInOut' }}>
           <div className="flex items-center justify-between"><span className="grid size-9 place-items-center rounded-full bg-pink text-black"><Users size={16} /></span><ArrowUpRight size={15} className="text-white/45" /></div><p className="mt-5 text-2xl font-bold tracking-[-.05em]">2.4K+</p><p className="mt-1 text-[10px] uppercase tracking-[.16em] text-white/45">{t('auth.curatedCreators')}</p>
         </motion.div>

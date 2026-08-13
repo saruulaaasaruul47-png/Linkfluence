@@ -117,7 +117,7 @@ export function FeedCard({
   }
 
   return (
-    <div className="grid h-full w-full shrink-0 snap-start snap-always grid-cols-[minmax(0,1fr)_auto_minmax(0,1fr)] items-center px-2 py-3">
+    <div className="showcase-reel-row grid h-full w-full shrink-0 snap-start snap-always grid-cols-[minmax(0,1fr)_auto_minmax(0,1fr)] items-center px-2 py-3">
       <aside className="hidden h-full w-full min-w-0 flex-col justify-end self-stretch py-[8dvh] pl-44 pr-5 lg:flex" aria-label={`${item.title} information`}>
         <div className="border-l border-white/15 pl-4">
           <div className="flex min-w-0 items-center gap-2">
@@ -165,7 +165,7 @@ export function FeedCard({
         onClick={onOpen}
         onKeyDown={openFromKeyboard}
         aria-label={`Open ${item.title}`}
-        className="group relative col-start-2 aspect-[9/16] w-[min(49dvh,30rem,calc(100vw-5rem))] cursor-pointer overflow-hidden rounded-[1.1rem] border border-white/12 bg-[#151515] shadow-[0_24px_80px_rgba(0,0,0,.45)] outline-none transition duration-300 hover:border-white/25 focus-visible:ring-2 focus-visible:ring-pink"
+        className="showcase-reel-card group relative col-start-2 aspect-[9/16] w-[min(49dvh,30rem,calc(100vw-5rem))] cursor-pointer overflow-hidden rounded-[1.1rem] border border-white/12 bg-[#151515] shadow-[0_24px_80px_rgba(0,0,0,.45)] outline-none transition duration-300 hover:border-white/25 focus-visible:ring-2 focus-visible:ring-pink"
       >
         {item.mediaType === 'VIDEO' && item.mediaUrl ? (
           <video
@@ -239,7 +239,7 @@ export function FeedCard({
         </div>
       </article>
 
-      <aside aria-label={`${item.title} actions`} className="ml-2 flex w-12 flex-col items-center justify-end gap-4 justify-self-start self-stretch py-[8dvh] xl:ml-5">
+      <aside aria-label={`${item.title} actions`} className="showcase-reel-actions ml-2 flex w-12 flex-col items-center justify-end gap-4 justify-self-start self-stretch py-[8dvh] xl:ml-5">
         <div className="flex flex-col items-center gap-1">
           <button
             type="button"
@@ -466,7 +466,7 @@ export function ShowcaseFeed() {
   }
 
   return (
-    <main className="h-[calc(100dvh-76px)] overflow-hidden bg-[#0b0b0b]">
+    <main className="showcase-feed-shell h-[calc(100dvh-76px)] overflow-hidden bg-[#0b0b0b]">
       <div className="relative h-full min-w-0">
         <aside className="absolute inset-y-0 left-0 z-20 hidden w-40 flex-col border-r border-white/[.07] bg-[#0b0b0b] px-2 py-4 lg:flex">
           <p className="px-2.5 text-[6px] font-bold uppercase tracking-[.15em] text-white/25">Watch</p>

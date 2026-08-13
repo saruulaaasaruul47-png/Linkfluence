@@ -1,7 +1,7 @@
 import { useEffect, useState } from 'react'
 import { AnimatePresence, motion } from 'motion/react'
 import { BarChart3, Bell, BookmarkCheck, BriefcaseBusiness, Check, ChevronDown, ChevronLeft, ChevronRight, CircleDollarSign, Compass, FileSignature, FolderKanban, FolderOpen, Gauge, Handshake, ImagePlus, Inbox, LayoutDashboard, LogOut, Menu, MessageSquare, Palette, Search, Settings, Users, WalletCards, X } from 'lucide-react'
-import { Outlet, useLocation, useNavigate } from 'react-router-dom'
+import { NavLink, Outlet, useLocation, useNavigate } from 'react-router-dom'
 import { BrandLogo } from '../BrandLogo'
 import { Avatar, Badge } from '../ui'
 import { useCollaboration } from '../../context/collaboration-context'
@@ -110,6 +110,21 @@ function DashboardNavigation({ sections, role, collapsed=false, close }) {
   return <nav className="flex-1 space-y-5 px-3 pb-5">{sections.map((section)=><section key={section.label}><p className={`mb-2 px-3 text-[9px] font-bold uppercase tracking-[.16em] text-white/20 ${collapsed?'sr-only':''}`}>{t(section.label)}</p><div className="space-y-1">{section.items.map(([label,to,Icon])=><SidebarNavItem key={`${to}:${collapsed}`} label={t(label)} to={to} icon={Icon} end={to.endsWith('dashboard')} onNavigate={close} collapsed={collapsed} activeClass={activeClass}/>)}</div></section>)}</nav>
 }
 
+function MobileDashboardNavigation({ role, onMore }) {
+  const {t}=useLanguage()
+  const accent=role==='creator'?'text-pink':'text-mint'
+  const items=[
+    [t('common.dashboard'),`/${role}/dashboard`,LayoutDashboard,true],
+    [t('common.discover'),'/discover',Compass,false],
+    [t('dashboard.items.posts'),`/${role}/posts`,ImagePlus,false],
+    [t('dashboard.items.messages'),`/${role}/messages`,MessageSquare,false],
+  ]
+  return <nav aria-label="Mobile dashboard navigation" className="dashboard-mobile-nav lg:hidden">
+    {items.map(([label,to,Icon,end])=><NavLink key={to} to={to} end={end} className={({isActive})=>`dashboard-mobile-nav-item ${isActive?accent:'text-white/45'}`}><Icon size={19}/><span>{label}</span></NavLink>)}
+    <button type="button" onClick={onMore} className="dashboard-mobile-nav-item text-white/45" aria-label="Open all dashboard sections"><Menu size={19}/><span>More</span></button>
+  </nav>
+}
+
 export function DashboardLayout({ role }) {
   const [sidebarHovered,setSidebarHovered]=useState(false)
   const [sidebarFocused,setSidebarFocused]=useState(false)
@@ -200,7 +215,7 @@ export function DashboardLayout({ role }) {
       </div>
       <DashboardNavigation sections={sections} role={role} collapsed={collapsed}/>
     </aside>
-    <div className={`transition-[padding] duration-300 ${sidebarPinned?'lg:pl-[17.5rem]':'lg:pl-[5.25rem]'}`}>
+    <div className={`dashboard-content-shell transition-[padding] duration-300 ${sidebarPinned?'lg:pl-[17.5rem]':'lg:pl-[5.25rem]'}`}>
       <header className="dashboard-topbar">
         <button aria-label={t('common.openNavigation')} className="grid size-10 place-items-center rounded-full border border-white/10 lg:hidden" onClick={()=>setMobileOpen(true)}><Menu size={18}/></button>
         <nav aria-label="Breadcrumb" className="hidden items-center gap-2 text-[10px] uppercase tracking-[.12em] text-white/30 sm:flex">
@@ -219,6 +234,7 @@ export function DashboardLayout({ role }) {
       </header>
       <AnimatePresence mode="wait"><motion.div key={location.pathname} initial={{opacity:0,y:8}} animate={{opacity:1,y:0}} exit={{opacity:0,y:-5}} transition={{duration:.2}}><Outlet/></motion.div></AnimatePresence>
     </div>
+    <MobileDashboardNavigation role={role} onMore={()=>setMobileOpen(true)}/>
     <AnimatePresence>{mobileOpen&&<><motion.div className="fixed inset-0 z-[80] bg-black/60 backdrop-blur-sm lg:hidden" initial={{opacity:0}} animate={{opacity:1}} exit={{opacity:0}} onClick={()=>setMobileOpen(false)}/><motion.aside className="fixed inset-y-0 left-0 z-[90] flex w-[min(19rem,88vw)] flex-col overflow-y-auto border-r border-white/10 bg-[#101010] lg:hidden" initial={{x:'-100%'}} animate={{x:0}} exit={{x:'-100%'}} transition={{type:'spring',stiffness:320,damping:32}}><div className="flex h-[70px] shrink-0 items-center justify-between border-b border-white/10 px-5"><BrandLogo className="text-white"/><button aria-label={t('common.closeNavigation')} onClick={()=>setMobileOpen(false)}><X size={18}/></button></div><div className="px-4 py-4"><Badge variant={accent} className="max-w-full overflow-hidden whitespace-nowrap"><TextType text={t('dashboard.workspace', { channel: profile.sub })} typingSpeed={9} initialDelay={0} loop={false} cursorCharacter="▍" cursorClassName={role==='creator'?'text-[#7d1f50]':'text-[#155b31]'}/></Badge></div><DashboardNavigation sections={sections} role={role} close={()=>setMobileOpen(false)}/></motion.aside></>}</AnimatePresence>
     {storyOpen&&<StoryViewer stories={activeStories} onClose={()=>setStoryOpen(false)}/>}
   </div>
