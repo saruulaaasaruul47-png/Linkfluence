@@ -12,6 +12,7 @@
     "seed:admin": "node prisma/seed-admin.js",
     "seed:demo-accounts": "node prisma/seed-demo-accounts.js",
     "seed:marketplace": "node prisma/seed-marketplace.js",
+    "seed:verify": "node scripts/verify-marketplace-seed.js",
     "prisma:generate": "prisma generate",
     "prisma:validate": "prisma validate",
     "migrate:dev": "prisma migrate dev",

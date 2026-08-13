@@ -8,18 +8,27 @@ if (process.env.NODE_ENV === 'production' && process.env.ALLOW_DEMO_SEED !== 'tr
 }
 
 const CREDENTIALS = {
-  admin: { email: 'admin@vyra.example', password: 'VyraAdmin2026!', displayName: 'Vyra Admin', username: 'vyra_admin', roles: ['VIEWER', 'ADMIN'] },
+  admin: { email: 'saaaa0189@gmail.com', password: 'Admin123?', displayName: 'Influence Hub Super Admin', username: 'influencehub_admin', roles: ['VIEWER', 'ADMIN'] },
   viewer: { email: 'viewer@vyra.example', password: 'VyraViewer2026!', displayName: 'Saraa Viewer', username: 'saraa_viewer', roles: ['VIEWER'] },
+  audience: [
+    { key: 'nomi', email: 'nomi.viewer@vyra.example', password: 'VyraViewer2026!', displayName: 'Nomi Viewer', username: 'nomi_viewer' },
+    { key: 'bat', email: 'bat.viewer@vyra.example', password: 'VyraViewer2026!', displayName: 'Bat Viewer', username: 'bat_viewer' },
+    { key: 'tulga', email: 'tulga.viewer@vyra.example', password: 'VyraViewer2026!', displayName: 'Tulga Viewer', username: 'tulga_viewer' },
+  ],
   creators: [
-    { key: 'amara', email: 'amara.creator@vyra.example', password: 'VyraCreator2026!', displayName: 'Amara Bat', username: 'amara_bat' },
+    { key: 'amara', email: 'creator@influencehub.mn', password: 'Creator123?', displayName: 'Amara Bat', username: 'amara_bat' },
     { key: 'temuulen', email: 'temuulen.creator@vyra.example', password: 'VyraCreator2026!', displayName: 'Temuulen Film', username: 'temuulen_film' },
     { key: 'nara', email: 'nara.creator@vyra.example', password: 'VyraCreator2026!', displayName: 'Nara Eats', username: 'nara_eats' },
     { key: 'enkh', email: 'enkh.creator@vyra.example', password: 'VyraCreator2026!', displayName: 'Enkh Tech', username: 'enkh_tech' },
+    { key: 'bolor', email: 'bolor.creator@vyra.example', password: 'VyraCreator2026!', displayName: 'Bolor Moves', username: 'bolor_moves' },
+    { key: 'anu', email: 'anu.creator@vyra.example', password: 'VyraCreator2026!', displayName: 'Anu Plays', username: 'anu_plays' },
   ],
   businesses: [
-    { key: 'gobi', email: 'gobi.business@vyra.example', password: 'VyraBusiness2026!', displayName: 'GOBI Cashmere', username: 'gobi_cashmere' },
+    { key: 'gobi', email: 'business@influencehub.mn', password: 'Business123?', displayName: 'GOBI Cashmere', username: 'gobi_cashmere' },
     { key: 'aero', email: 'aero.business@vyra.example', password: 'VyraBusiness2026!', displayName: 'Aero Mongolia', username: 'aero_mongolia' },
     { key: 'tirtir', email: 'tirtir.business@vyra.example', password: 'VyraBusiness2026!', displayName: 'TIRTIR Mongolia', username: 'tirtir_mongolia' },
+    { key: 'shoppy', email: 'shoppy.business@vyra.example', password: 'VyraBusiness2026!', displayName: 'Shoppy Mongolia', username: 'shoppy_mongolia' },
+    { key: 'unitel', email: 'unitel.business@vyra.example', password: 'VyraBusiness2026!', displayName: 'Unitel', username: 'unitel_mongolia' },
   ],
 };
 
@@ -76,6 +85,32 @@ const creatorProfiles = {
       { platform: 'FACEBOOK', handle: 'enkh.tech.mn', followers: 65400, engagement: 6.2 },
     ],
   },
+  bolor: {
+    channelName: 'Bolor Moves', slug: 'bolor-moves', bio: 'Fitness creator sharing sustainable movement, recovery and everyday strength.',
+    location: 'Ulaanbaatar, Mongolia', categories: ['Sports', 'Fitness'], skills: ['Workout video', 'Wellness UGC', 'Event coverage'],
+    languages: ['Mongolian', 'English'], audienceDescription: 'Active women and young professionals building healthy routines.', contentFormat: 'Workout reels, challenges and wellness stories',
+    startingRate: 1350000, rates: { reel: 2200000, story: 380000, challenge: 3600000 }, availability: 'Available this month',
+    avatarUrl: 'https://images.unsplash.com/photo-1538805060514-97d9cc17730c?auto=format&fit=crop&w=640&q=85',
+    coverUrl: 'https://images.unsplash.com/photo-1517836357463-d25dfeac3438?auto=format&fit=crop&w=1800&q=85',
+    verificationStatus: 'VERIFIED', ratingAverage: 4.8, ratingCount: 13,
+    social: [
+      { platform: 'INSTAGRAM', handle: 'bolor.moves', followers: 134500, engagement: 7.1 },
+      { platform: 'TIKTOK', handle: 'bolormoves', followers: 188200, engagement: 9.0 },
+    ],
+  },
+  anu: {
+    channelName: 'Anu Plays', slug: 'anu-plays', bio: 'Gaming and entertainment creator making technology, play and internet culture feel social.',
+    location: 'Darkhan, Mongolia', categories: ['Gaming', 'Entertainment'], skills: ['Game review', 'Livestream highlights', 'Short-form comedy'],
+    languages: ['Mongolian', 'English'], audienceDescription: 'Gen Z gamers and entertainment fans across Mongolia.', contentFormat: 'Gaming shorts, reviews and community videos',
+    startingRate: 1100000, rates: { reel: 1900000, story: 300000, review: 2500000 }, availability: 'Open for gaming campaigns',
+    avatarUrl: 'https://images.unsplash.com/photo-1542751371-adc38448a05e?auto=format&fit=crop&w=640&q=85',
+    coverUrl: 'https://images.unsplash.com/photo-1511512578047-dfb367046420?auto=format&fit=crop&w=1800&q=85',
+    verificationStatus: 'VERIFIED', ratingAverage: 4.6, ratingCount: 8,
+    social: [
+      { platform: 'YOUTUBE', handle: 'anuplays', followers: 76500, engagement: 8.7 },
+      { platform: 'TIKTOK', handle: 'anu.plays', followers: 142300, engagement: 10.2 },
+    ],
+  },
 };
 
 const businessProfiles = {
@@ -97,24 +132,44 @@ const businessProfiles = {
     logoUrl: 'https://ui-avatars.com/api/?name=TIRTIR&background=ff5fa8&color=ffffff&size=512',
     coverUrl: 'https://images.unsplash.com/photo-1596462502278-27bfdc403348?auto=format&fit=crop&w=1800&q=85', verificationStatus: 'VERIFIED', ratingAverage: 4.7, ratingCount: 9,
   },
+  shoppy: {
+    companyName: 'Shoppy Mongolia', slug: 'shoppy-mongolia', description: 'A local commerce platform helping people discover products and growing brands.', industry: 'E-commerce',
+    location: 'Ulaanbaatar, Mongolia', website: 'https://shoppy.mn', companySize: '51–200',
+    logoUrl: 'https://ui-avatars.com/api/?name=Shoppy&background=ffd3e8&color=511331&size=512',
+    coverUrl: 'https://images.unsplash.com/photo-1556742049-0cfed4f6a45d?auto=format&fit=crop&w=1800&q=85', verificationStatus: 'VERIFIED', ratingAverage: 4.6, ratingCount: 7,
+  },
+  unitel: {
+    companyName: 'Unitel', slug: 'unitel-mongolia', description: 'Digital services and connectivity designed for modern life across Mongolia.', industry: 'Telecommunications',
+    location: 'Ulaanbaatar, Mongolia', website: 'https://unitel.mn', companySize: '500+',
+    logoUrl: 'https://ui-avatars.com/api/?name=Unitel&background=b8f7d0&color=073b25&size=512',
+    coverUrl: 'https://images.unsplash.com/photo-1516321165247-4aa89a48be28?auto=format&fit=crop&w=1800&q=85', verificationStatus: 'VERIFIED', ratingAverage: 4.8, ratingCount: 15,
+  },
 };
 
 const mediaByCreator = {
   amara: [
-    ['Soft Icons AW26', 'Editorial styling and short-form campaign for a modern cashmere collection.', 'Fashion', 'https://images.unsplash.com/photo-1485968579580-b6d095142e6e?auto=format&fit=crop&w=1200&q=85'],
-    ['City Layers', 'Street-style visual diary from central Ulaanbaatar.', 'Fashion', 'https://images.unsplash.com/photo-1529139574466-a303027c1d8b?auto=format&fit=crop&w=1200&q=85'],
+    ['Soft Icons AW26', 'Editorial styling and short-form campaign for a modern cashmere collection.', 'Fashion', 'https://storage.googleapis.com/gtv-videos-bucket/sample/ForBiggerBlazes.mp4'],
+    ['City Layers', 'Street-style visual diary from central Ulaanbaatar.', 'Fashion', 'https://storage.googleapis.com/gtv-videos-bucket/sample/ForBiggerEscapes.mp4'],
   ],
   temuulen: [
-    ['City in Motion', 'A cinematic destination film connecting city energy with open landscapes.', 'Travel', 'https://images.unsplash.com/photo-1500534314209-a25ddb2bd429?auto=format&fit=crop&w=1200&q=85'],
-    ['Blue Sky Routes', 'Aerial travel story from the heart of Mongolia.', 'Film', 'https://images.unsplash.com/photo-1501785888041-af3ef285b470?auto=format&fit=crop&w=1200&q=85'],
+    ['City in Motion', 'A cinematic destination film connecting city energy with open landscapes.', 'Travel', 'https://storage.googleapis.com/gtv-videos-bucket/sample/ForBiggerJoyrides.mp4'],
+    ['Blue Sky Routes', 'Aerial travel story from the heart of Mongolia.', 'Film', 'https://interactive-examples.mdn.mozilla.net/media/cc0-videos/flower.mp4'],
   ],
   nara: [
-    ['Skin, Honestly', 'A calm morning routine told through food, skin and daily rituals.', 'Beauty', 'https://images.unsplash.com/photo-1556228720-195a672e8a03?auto=format&fit=crop&w=1200&q=85'],
-    ['Seoul Table', 'Seasonal recipes and intimate table stories.', 'Food', 'https://images.unsplash.com/photo-1414235077428-338989a2e8c0?auto=format&fit=crop&w=1200&q=85'],
+    ['Skin, Honestly', 'A calm morning routine told through food, skin and daily rituals.', 'Beauty', 'https://storage.googleapis.com/gtv-videos-bucket/sample/ForBiggerFun.mp4'],
+    ['Seoul Table', 'Seasonal recipes and intimate table stories.', 'Food', 'https://storage.googleapis.com/gtv-videos-bucket/sample/ForBiggerMeltdowns.mp4'],
   ],
   enkh: [
-    ['Work Smarter', 'A practical device workflow explained in under sixty seconds.', 'Technology', 'https://images.unsplash.com/photo-1516321318423-f06f85e504b3?auto=format&fit=crop&w=1200&q=85'],
-    ['Pocket Studio', 'Creator tools and a compact mobile production setup.', 'Education', 'https://images.unsplash.com/photo-1496181133206-80ce9b88a853?auto=format&fit=crop&w=1200&q=85'],
+    ['Work Smarter', 'A practical device workflow explained in under sixty seconds.', 'Technology', 'https://storage.googleapis.com/gtv-videos-bucket/sample/ForBiggerBlazes.mp4'],
+    ['Pocket Studio', 'Creator tools and a compact mobile production setup.', 'Education', 'https://storage.googleapis.com/gtv-videos-bucket/sample/ForBiggerJoyrides.mp4'],
+  ],
+  bolor: [
+    ['Move with Intention', 'A practical morning movement routine for busy days.', 'Fitness', 'https://storage.googleapis.com/gtv-videos-bucket/sample/ForBiggerFun.mp4'],
+    ['Stronger Together', 'A community workout challenge filmed in Ulaanbaatar.', 'Sports', 'https://storage.googleapis.com/gtv-videos-bucket/sample/ForBiggerMeltdowns.mp4'],
+  ],
+  anu: [
+    ['One More Round', 'Fast gaming highlights with a playful creator voice.', 'Gaming', 'https://storage.googleapis.com/gtv-videos-bucket/sample/ForBiggerEscapes.mp4'],
+    ['Desk Setup Refresh', 'A compact gaming and creator desk transformation.', 'Technology', 'https://interactive-examples.mdn.mozilla.net/media/cc0-videos/flower.mp4'],
   ],
 };
 
@@ -144,6 +199,25 @@ const postVideoByCreator = {
     url: 'https://storage.googleapis.com/gtv-videos-bucket/sample/ForBiggerJoyrides.mp4',
     durationMs: 15000,
   },
+  bolor: { url: 'https://storage.googleapis.com/gtv-videos-bucket/sample/ForBiggerFun.mp4', durationMs: 60000 },
+  anu: { url: 'https://storage.googleapis.com/gtv-videos-bucket/sample/ForBiggerEscapes.mp4', durationMs: 15000 },
+};
+
+const extraVideoPostByCreator = {
+  amara: { title: 'Three Ways to Style Cashmere', caption: 'One timeless layer, three city-ready looks.', category: 'Fashion', url: 'https://storage.googleapis.com/gtv-videos-bucket/sample/ForBiggerFun.mp4', durationMs: 60000 },
+  temuulen: { title: 'Road to the Open Steppe', caption: 'A quiet travel diary from the road beyond Ulaanbaatar.', category: 'Travel', url: 'https://storage.googleapis.com/gtv-videos-bucket/sample/ForBiggerMeltdowns.mp4', durationMs: 15000 },
+  nara: { title: 'A Warm Table in 30 Seconds', caption: 'Simple ingredients, honest flavor and a table made for sharing.', category: 'Food', url: 'https://storage.googleapis.com/gtv-videos-bucket/sample/ForBiggerEscapes.mp4', durationMs: 15000 },
+  enkh: { title: 'Pocket Creator Setup', caption: 'A practical mobile workflow for filming and editing on the go.', category: 'Technology', url: 'https://interactive-examples.mdn.mozilla.net/media/cc0-videos/flower.mp4', durationMs: 30000 },
+  bolor: { title: 'Five-Minute Reset', caption: 'A simple mobility reset you can do between meetings.', category: 'Fitness', url: 'https://storage.googleapis.com/gtv-videos-bucket/sample/ForBiggerJoyrides.mp4', durationMs: 15000 },
+  anu: { title: 'Weekend Game Pick', caption: 'A quick honest review of this weekend’s co-op game.', category: 'Gaming', url: 'https://storage.googleapis.com/gtv-videos-bucket/sample/ForBiggerBlazes.mp4', durationMs: 15000 },
+};
+
+const postVideoByBusiness = {
+  gobi: { url: 'https://storage.googleapis.com/gtv-videos-bucket/sample/ForBiggerBlazes.mp4', durationMs: 15000 },
+  aero: { url: 'https://storage.googleapis.com/gtv-videos-bucket/sample/ForBiggerJoyrides.mp4', durationMs: 15000 },
+  tirtir: { url: 'https://storage.googleapis.com/gtv-videos-bucket/sample/ForBiggerFun.mp4', durationMs: 60000 },
+  shoppy: { url: 'https://storage.googleapis.com/gtv-videos-bucket/sample/ForBiggerEscapes.mp4', durationMs: 15000 },
+  unitel: { url: 'https://storage.googleapis.com/gtv-videos-bucket/sample/ForBiggerMeltdowns.mp4', durationMs: 15000 },
 };
 
 const campaignData = [
@@ -153,6 +227,10 @@ const campaignData = [
   { key: 'aero-weekend-routes', business: 'aero', title: 'Weekend Routes', slug: 'weekend-routes', category: 'Travel', platforms: ['INSTAGRAM', 'TIKTOK'], budgetMin: 3000000, budgetMax: 5500000, goal: 'Promote accessible weekend destinations.', deliverables: ['2 Reels', '4 Stories'] },
   { key: 'tirtir-glow-cushion', business: 'tirtir', title: 'TIRTIR Cushion Glow', slug: 'tirtir-cushion-glow', category: 'Beauty', platforms: ['INSTAGRAM', 'TIKTOK'], budgetMin: 2500000, budgetMax: 6000000, goal: 'Launch the cushion foundation with honest wear tests.', deliverables: ['2 UGC videos', '3 Stories', 'Before/after photos'] },
   { key: 'tirtir-real-skin', business: 'tirtir', title: 'Real Skin Diaries', slug: 'real-skin-diaries', category: 'Beauty', platforms: ['INSTAGRAM'], budgetMin: 1800000, budgetMax: 4000000, goal: 'Share authentic seven-day product experiences.', deliverables: ['1 Reel', 'Daily Stories'] },
+  { key: 'shoppy-local-finds', business: 'shoppy', title: 'Local Finds Week', slug: 'local-finds-week', category: 'Lifestyle', platforms: ['INSTAGRAM', 'TIKTOK'], budgetMin: 2200000, budgetMax: 5200000, goal: 'Introduce useful products from emerging Mongolian brands.', deliverables: ['2 Reels', '4 Stories'] },
+  { key: 'shoppy-cart-stories', business: 'shoppy', title: 'What Is in My Cart?', slug: 'whats-in-my-cart', category: 'Shopping', platforms: ['TIKTOK'], budgetMin: 1800000, budgetMax: 3800000, goal: 'Create relatable product discovery videos for young shoppers.', deliverables: ['3 short videos'] },
+  { key: 'unitel-connected-life', business: 'unitel', title: 'Connected Life', slug: 'connected-life', category: 'Technology', platforms: ['INSTAGRAM', 'YOUTUBE'], budgetMin: 4000000, budgetMax: 9000000, goal: 'Show how reliable connectivity supports work, creativity and play.', deliverables: ['1 hero video', '2 Reels', '3 Stories'] },
+  { key: 'unitel-game-night', business: 'unitel', title: 'Game Night Anywhere', slug: 'game-night-anywhere', category: 'Gaming', platforms: ['YOUTUBE', 'TIKTOK'], budgetMin: 3000000, budgetMax: 7000000, goal: 'Connect with gaming audiences through a social challenge.', deliverables: ['2 gaming videos', '1 livestream highlight'] },
 ];
 
 const daysFromNow = (days, hour = 12) => {
@@ -164,25 +242,78 @@ const daysFromNow = (days, hour = 12) => {
 
 const daysAgo = (days, hour = 12) => daysFromNow(-days, hour);
 
-async function upsertUser(tx, key, input) {
-  const passwordHash = await hashPassword(input.password);
-  return tx.user.upsert({
-    where: { email: input.email },
+async function upsertVideoContent({
+  key, ownerId, authorType, creatorId = null, businessId = null, postType = 'ORIGINAL',
+  title, caption, category, campaignId = null, url, durationMs, publishedDaysAgo = 1,
+}) {
+  const assetId = `seed_asset_video_${key}`;
+  const postId = `seed_content_video_${key}`;
+  const mediaId = `seed_content_media_video_${key}`;
+  const asset = await prisma.mediaAsset.upsert({
+    where: { id: assetId },
     create: {
-      id: `seed_user_${key}`, email: input.email, username: input.username, displayName: input.displayName,
-      passwordHash, roles: input.roles, status: 'ACTIVE', emailVerifiedAt: daysAgo(60), lastSeenAt: new Date(),
+      id: assetId, ownerId, purpose: 'CONTENT', storageKey: `seed/content/${key}.mp4`, url,
+      originalName: `${key}.mp4`, mimeType: 'video/mp4', sizeBytes: 2500000,
+      checksum: `seed-checksum-video-${key}`,
     },
     update: {
-      username: input.username, displayName: input.displayName, passwordHash, roles: input.roles,
-      status: 'ACTIVE', emailVerifiedAt: daysAgo(60), deletedAt: null,
+      ownerId, purpose: 'CONTENT', storageKey: `seed/content/${key}.mp4`, url,
+      originalName: `${key}.mp4`, mimeType: 'video/mp4', sizeBytes: 2500000, deletedAt: null,
     },
   });
+  const post = await prisma.contentPost.upsert({
+    where: { id: postId },
+    create: {
+      id: postId, authorType, creatorId, businessId, postType, title, caption, category,
+      campaignId, visibility: 'PUBLIC', status: 'PUBLISHED', publishedAt: daysAgo(publishedDaysAgo),
+    },
+    update: {
+      authorType, creatorId, businessId, postType, title, caption, category, campaignId,
+      visibility: 'PUBLIC', status: 'PUBLISHED', publishedAt: daysAgo(publishedDaysAgo),
+      deletedAt: null, hiddenAt: null, hiddenReason: null,
+    },
+  });
+  await prisma.contentMedia.upsert({
+    where: { id: mediaId },
+    create: {
+      id: mediaId, postId: post.id, mediaAssetId: asset.id, mediaType: 'VIDEO',
+      durationMs, altText: `${title} video`,
+    },
+    update: {
+      postId: post.id, mediaAssetId: asset.id, mediaType: 'VIDEO', durationMs, altText: `${title} video`,
+    },
+  });
+  return post;
+}
+
+async function upsertUser(tx, key, input) {
+  const passwordHash = await hashPassword(input.password);
+  const seedId = `seed_user_${key}`;
+  const [existingById, existingByEmail] = await Promise.all([
+    tx.user.findUnique({ where: { id: seedId } }),
+    tx.user.findUnique({ where: { email: input.email } }),
+  ]);
+  if (existingById && existingByEmail && existingById.id !== existingByEmail.id) {
+    throw new Error(`Cannot move seed account ${key} to ${input.email}: that email already belongs to another user.`);
+  }
+  const existing = existingById || existingByEmail;
+  const data = {
+    email: input.email, username: input.username, displayName: input.displayName, passwordHash,
+    roles: input.roles, status: 'ACTIVE', emailVerifiedAt: daysAgo(60), lastSeenAt: new Date(), deletedAt: null,
+  };
+  return existing
+    ? tx.user.update({ where: { id: existing.id }, data })
+    : tx.user.create({ data: { id: seedId, ...data } });
 }
 
 async function seedAccounts() {
   const users = {};
   users.admin = await upsertUser(prisma, 'admin', CREDENTIALS.admin);
   users.viewer = await upsertUser(prisma, 'viewer', CREDENTIALS.viewer);
+  for (const input of CREDENTIALS.audience) {
+    users[input.key] = await upsertUser(prisma, `viewer_${input.key}`, { ...input, roles: ['VIEWER'] });
+    await prisma.notificationPreference.upsert({ where: { userId: users[input.key].id }, create: { userId: users[input.key].id }, update: {} });
+  }
 
   for (const input of CREDENTIALS.creators) {
     const user = await upsertUser(prisma, `creator_${input.key}`, { ...input, roles: ['VIEWER', 'CREATOR'] });
@@ -250,21 +381,24 @@ async function seedCreatorDiscovery(users) {
     for (let index = 0; index < mediaByCreator[key].length; index += 1) {
       const [title, description, category, url] = mediaByCreator[key][index];
       const asset = await prisma.mediaAsset.upsert({
-        where: { storageKey: `seed/portfolio/${key}/${index + 1}.jpg` },
+        where: { id: `seed_asset_${key}_${index + 1}` },
         create: {
-          id: `seed_asset_${key}_${index + 1}`, ownerId: user.id, purpose: 'PORTFOLIO', storageKey: `seed/portfolio/${key}/${index + 1}.jpg`,
-          url, originalName: `${key}-${index + 1}.jpg`, mimeType: 'image/jpeg', sizeBytes: 480000 + index * 12000, checksum: `seed-checksum-${key}-${index + 1}`,
+          id: `seed_asset_${key}_${index + 1}`, ownerId: user.id, purpose: 'PORTFOLIO', storageKey: `seed/portfolio/${key}/${index + 1}.mp4`,
+          url, originalName: `${key}-${index + 1}.mp4`, mimeType: 'video/mp4', sizeBytes: 2500000 + index * 12000, checksum: `seed-checksum-${key}-${index + 1}`,
         },
-        update: { url, deletedAt: null },
+        update: {
+          ownerId: user.id, storageKey: `seed/portfolio/${key}/${index + 1}.mp4`, url,
+          originalName: `${key}-${index + 1}.mp4`, mimeType: 'video/mp4', sizeBytes: 2500000 + index * 12000, deletedAt: null,
+        },
       });
       const item = await prisma.portfolioItem.upsert({
         where: { id: `seed_portfolio_${key}_${index + 1}` },
         create: {
           id: `seed_portfolio_${key}_${index + 1}`, creatorId: creator.id, mediaAssetId: asset.id, title, description, category,
-          mediaType: 'IMAGE', mediaUrl: url, thumbnailUrl: url, statistics: { views: 48000 + index * 17000, likes: 5200 + index * 900, reach: 86000 + index * 22000 },
+          mediaType: 'VIDEO', mediaUrl: url, thumbnailUrl: null, statistics: { views: 48000 + index * 17000, likes: 5200 + index * 900, reach: 86000 + index * 22000 },
           status: 'PUBLISHED', verified: index === 0, sortOrder: index, publishedAt: daysAgo(20 + index * 18),
         },
-        update: { title, description, category, mediaAssetId: asset.id, mediaUrl: url, thumbnailUrl: url, status: 'PUBLISHED', verified: index === 0, deletedAt: null },
+        update: { title, description, category, mediaAssetId: asset.id, mediaType: 'VIDEO', mediaUrl: url, thumbnailUrl: null, status: 'PUBLISHED', verified: index === 0, deletedAt: null },
       });
       portfolio[key].push(item);
 
@@ -273,9 +407,9 @@ async function seedCreatorDiscovery(users) {
           where: { id: `seed_showcase_${key}` },
           create: {
             id: `seed_showcase_${key}`, creatorId: creator.id, portfolioItemId: item.id, title, description, category,
-            mediaType: 'IMAGE', mediaUrl: url, thumbnailUrl: url, status: 'PUBLISHED', publishedAt: daysAgo(8),
+            mediaType: 'VIDEO', mediaUrl: url, thumbnailUrl: null, status: 'PUBLISHED', publishedAt: daysAgo(8),
           },
-          update: { creatorId: creator.id, portfolioItemId: item.id, title, description, category, mediaUrl: url, thumbnailUrl: url, status: 'PUBLISHED', archivedAt: null },
+          update: { creatorId: creator.id, portfolioItemId: item.id, title, description, category, mediaType: 'VIDEO', mediaUrl: url, thumbnailUrl: null, status: 'PUBLISHED', archivedAt: null },
         });
       }
     }
@@ -331,6 +465,13 @@ async function seedCreatorDiscovery(users) {
       },
     });
     content[`${key}Post`] = post;
+
+    const extraVideo = extraVideoPostByCreator[key];
+    content[`${key}ExtraPost`] = await upsertVideoContent({
+      key: `creator-${key}-extra`, ownerId: user.id, authorType: 'CREATOR', creatorId: creator.id,
+      title: extraVideo.title, caption: extraVideo.caption, category: extraVideo.category,
+      url: extraVideo.url, durationMs: extraVideo.durationMs, publishedDaysAgo: 4,
+    });
 
     if (key === creatorVideoPost.creatorKey) {
       const videoAsset = await prisma.mediaAsset.upsert({
@@ -450,7 +591,7 @@ async function seedBusinessesAndCampaigns(users) {
     });
 
     const campaign = Object.values(campaigns).find((value) => value.businessId === business.id);
-    await prisma.contentPost.upsert({
+    const businessPost = await prisma.contentPost.upsert({
       where: { id: `seed_content_business_${key}` },
       create: {
         id: `seed_content_business_${key}`, authorType: 'BUSINESS', businessId: business.id, postType: 'BRAND_STORY',
@@ -458,6 +599,31 @@ async function seedBusinessesAndCampaigns(users) {
         visibility: 'PUBLIC', status: 'PUBLISHED', publishedAt: daysAgo(1),
       },
       update: { businessId: business.id, title: campaign.title, caption: profile.description, category: profile.industry, campaignId: campaign.id, status: 'PUBLISHED', deletedAt: null, hiddenAt: null },
+    });
+    const seedVideo = postVideoByBusiness[key];
+    const asset = await prisma.mediaAsset.upsert({
+      where: { id: `seed_asset_business_${key}_video` },
+      create: {
+        id: `seed_asset_business_${key}_video`, ownerId: users[key].user.id, purpose: 'CONTENT',
+        storageKey: `seed/content/business-${key}.mp4`, url: seedVideo.url,
+        originalName: `${key}-brand-story.mp4`, mimeType: 'video/mp4', sizeBytes: 2500000,
+        checksum: `seed-checksum-business-${key}-video`,
+      },
+      update: {
+        ownerId: users[key].user.id, url: seedVideo.url, originalName: `${key}-brand-story.mp4`,
+        mimeType: 'video/mp4', sizeBytes: 2500000, deletedAt: null,
+      },
+    });
+    await prisma.contentMedia.upsert({
+      where: { id: `seed_content_media_business_${key}` },
+      create: {
+        id: `seed_content_media_business_${key}`, postId: businessPost.id, mediaAssetId: asset.id,
+        mediaType: 'VIDEO', durationMs: seedVideo.durationMs, altText: `${profile.companyName} brand video`,
+      },
+      update: {
+        postId: businessPost.id, mediaAssetId: asset.id, mediaType: 'VIDEO',
+        durationMs: seedVideo.durationMs, altText: `${profile.companyName} brand video`,
+      },
     });
   }
   return campaigns;
@@ -474,6 +640,42 @@ async function seedSocialActions(users, discovery, campaigns) {
       where: { followerId_targetType_targetId: { followerId: users.viewer.id, targetType, targetId } },
       create: { id: `seed_follow_${index + 1}`, followerId: users.viewer.id, targetType, targetId }, update: {},
     });
+  }
+
+  const audienceKeys = ['nomi', 'bat', 'tulga'];
+  const creatorKeys = CREDENTIALS.creators.map((item) => item.key);
+  const businessKeys = CREDENTIALS.businesses.map((item) => item.key);
+  for (let audienceIndex = 0; audienceIndex < audienceKeys.length; audienceIndex += 1) {
+    const audienceKey = audienceKeys[audienceIndex];
+    const follower = users[audienceKey];
+    for (let index = 0; index < creatorKeys.length; index += 1) {
+      if ((index + audienceIndex) % 2 !== 0) continue;
+      const creatorKey = creatorKeys[index];
+      await prisma.follow.upsert({
+        where: { followerId_targetType_targetId: { followerId: follower.id, targetType: 'CREATOR', targetId: users[creatorKey].creator.id } },
+        create: { id: `seed_follow_${audienceKey}_creator_${creatorKey}`, followerId: follower.id, targetType: 'CREATOR', targetId: users[creatorKey].creator.id },
+        update: {},
+      });
+    }
+    const businessKey = businessKeys[audienceIndex % businessKeys.length];
+    await prisma.follow.upsert({
+      where: { followerId_targetType_targetId: { followerId: follower.id, targetType: 'BUSINESS', targetId: users[businessKey].business.id } },
+      create: { id: `seed_follow_${audienceKey}_business_${businessKey}`, followerId: follower.id, targetType: 'BUSINESS', targetId: users[businessKey].business.id },
+      update: {},
+    });
+  }
+
+  const publishedPosts = Object.values(discovery.content).filter((post) => post?.id && !post.id.endsWith('_story'));
+  for (let postIndex = 0; postIndex < publishedPosts.length; postIndex += 1) {
+    const post = publishedPosts[postIndex];
+    const reactors = [users.viewer, ...audienceKeys.map((key) => users[key])].slice(0, 2 + (postIndex % 3));
+    for (const reactor of reactors) {
+      await prisma.contentReaction.upsert({
+        where: { userId_postId_type: { userId: reactor.id, postId: post.id, type: 'LIKE' } },
+        create: { id: `seed_reaction_${reactor.id}_${post.id}`, userId: reactor.id, postId: post.id, type: 'LIKE' },
+        update: {},
+      });
+    }
   }
 
   const saved = [
@@ -675,8 +877,8 @@ async function seedNotificationsAndAnalytics(users, collaborations) {
     const date = daysAgo(day, 0);
     await prisma.analyticsDailyRollup.upsert({
       where: { date },
-      create: { date, metrics: { users: 9, creators: 4, businesses: 3, campaigns: 6, activeCollaborations: 1, completedCollaborations: 1, funded: 20000000, released: 12000000, revenue: 1200000, seeded: true } },
-      update: { metrics: { users: 9, creators: 4, businesses: 3, campaigns: 6, activeCollaborations: 1, completedCollaborations: 1, funded: 20000000, released: 12000000, revenue: 1200000, seeded: true } },
+      create: { date, metrics: { users: 16, creators: 6, businesses: 5, campaigns: 10, activeCollaborations: 1, completedCollaborations: 1, funded: 20000000, released: 12000000, revenue: 1200000, seeded: true } },
+      update: { metrics: { users: 16, creators: 6, businesses: 5, campaigns: 10, activeCollaborations: 1, completedCollaborations: 1, funded: 20000000, released: 12000000, revenue: 1200000, seeded: true } },
     });
   }
 }

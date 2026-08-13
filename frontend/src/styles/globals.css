@@ -341,7 +341,7 @@ img { display: block; max-width: 100%; }
 .auth-divider::after { content: ""; height: 1px; flex: 1; background: var(--border); }
 .auth-google-button {
   width: 100%;
-  min-height: 3.25rem;
+  min-height: 3rem;
   display: inline-flex;
   align-items: center;
   justify-content: center;
@@ -349,17 +349,20 @@ img { display: block; max-width: 100%; }
   border: 1px solid var(--border);
   border-radius: 999px;
   color: var(--foreground);
-  background: rgba(255,255,255,.035);
+  background: #131314;
   font-size: .85rem;
   font-weight: 650;
   transition: transform .22s ease, border-color .22s ease, background-color .22s ease, box-shadow .22s ease;
 }
-.auth-google-button:hover { transform: translateY(-2px); border-color: rgba(255,255,255,.32); background: rgba(255,255,255,.075); box-shadow: 0 14px 34px rgba(0,0,0,.18); }
+.auth-google-button:hover { transform: translateY(-1px); border-color: rgba(255,255,255,.32); background: #18181a; box-shadow: 0 12px 28px rgba(0,0,0,.18); }
 .auth-google-button:disabled { cursor: not-allowed; opacity: .48; transform: none; box-shadow: none; }
-.google-signin-shell { display: grid; width: 100%; min-height: 3.25rem; place-items: center; }
+.google-signin-shell { position: relative; display: grid; width: 100%; min-height: 3rem; place-items: center; }
 .google-signin-shell.is-disabled { pointer-events: none; opacity: .55; }
-.google-signin-render { display: grid; width: 100%; min-height: 2.75rem; place-items: center; }
-.google-signin-render > div { max-width: 100%; }
+.google-signin-placeholder { position: absolute; inset: 0; margin: auto; width: min(100%, 25rem); }
+.google-signin-render { display: grid; width: 100%; min-height: 2.75rem; place-items: center; visibility: hidden; }
+.google-signin-render.is-ready { visibility: visible; }
+.google-signin-render > div,
+.google-signin-render iframe { max-width: 100% !important; }
 .floating-preview { position: absolute; border: 1px solid rgba(255,255,255,.18); border-radius: 1.25rem; background: rgba(255,255,255,.08); backdrop-filter: blur(18px); box-shadow: 0 24px 70px rgba(0,0,0,.35); }
 .brand-logo { display: inline-flex; width: max-content; align-items: flex-start; font-family: Georgia, "Times New Roman", serif; font-size: 1.2rem; font-weight: 800; font-style: italic; letter-spacing: -.08em; }
 .brand-logo span { color: var(--color-pink); }

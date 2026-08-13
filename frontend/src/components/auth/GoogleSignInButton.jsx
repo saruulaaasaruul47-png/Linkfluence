@@ -41,6 +41,7 @@ export function GoogleSignInButton({ disabled = false, label = 'Continue with Go
   const callbackRef = useRef(onCredential)
   const errorRef = useRef(onError)
   const [loadError, setLoadError] = useState('')
+  const [ready, setReady] = useState(false)
   const clientId = import.meta.env.VITE_GOOGLE_CLIENT_ID?.trim()
 
   useEffect(() => { callbackRef.current = onCredential }, [onCredential])
@@ -65,16 +66,18 @@ export function GoogleSignInButton({ disabled = false, label = 'Continue with Go
         buttonRef.current.replaceChildren()
         google.accounts.id.renderButton(buttonRef.current, {
           type: 'standard',
-          theme: 'outline',
+          theme: 'filled_black',
           size: 'large',
           shape: 'pill',
           text: 'continue_with',
-          logo_alignment: 'left',
+          logo_alignment: 'center',
           width: Math.min(400, Math.max(240, Math.floor(buttonRef.current.clientWidth))),
         })
+        setReady(true)
       })
       .catch((error) => {
         if (!active) return
+        setReady(false)
         setLoadError(error.message)
         errorRef.current?.(error)
       })
@@ -95,7 +98,10 @@ export function GoogleSignInButton({ disabled = false, label = 'Continue with Go
   }
 
   return <div className={`google-signin-shell ${disabled ? 'is-disabled' : ''}`} aria-busy={disabled}>
-    <div ref={buttonRef} className="google-signin-render" />
+    {!ready && !loadError && <div className="auth-google-button google-signin-placeholder" aria-hidden="true">
+      <GoogleMark/><span>{label}</span>
+    </div>}
+    <div ref={buttonRef} className={`google-signin-render ${ready ? 'is-ready' : ''}`} />
     {loadError && <p role="alert" className="mt-2 text-center text-xs text-red-200">{loadError}</p>}
   </div>
 }
