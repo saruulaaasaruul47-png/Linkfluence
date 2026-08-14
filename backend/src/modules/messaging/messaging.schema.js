@@ -1,6 +1,10 @@
 import { z } from 'zod';
 
-const id = z.string().cuid();
+// Production records use CUIDs, while deterministic demo/seed records use
+// readable ids such as `seed_conversation_gobi_amara`. Both are persisted
+// database identifiers and must pass through the same exact-match repository
+// lookup. Keep the accepted alphabet narrow instead of rejecting seeded data.
+const id = z.string().trim().min(1).max(100).regex(/^[A-Za-z0-9_-]+$/, 'Invalid identifier.');
 const envelope = ({
   body = z.object({}).strict().optional().default({}),
   params = z.object({}).passthrough(),

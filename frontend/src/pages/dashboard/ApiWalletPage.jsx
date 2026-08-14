@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useState } from 'react'
+import { useCallback, useEffect, useRef, useState } from 'react'
 import { Download, RefreshCw, Trash2, WalletCards } from 'lucide-react'
 import { paymentApi } from '../../api/collaboration.api'
 import { DashboardHeader, DashboardPage, DashboardPanel, StatusBadge } from '../../components/dashboard/DashboardUI'
@@ -23,6 +23,7 @@ export function WalletPage({ role }) {
   const [topUpOpen, setTopUpOpen] = useState(false)
   const [topUpAmount, setTopUpAmount] = useState('')
   const [topUpBusy, setTopUpBusy] = useState(false)
+  const bootstrapped = useRef(false)
 
   const load = useCallback(async () => {
     setState((current) => ({ ...current, loading: true, error: '' }))
@@ -39,7 +40,28 @@ export function WalletPage({ role }) {
       setState({ payments: [], methods: [], accounts: [], earnings: null, wallet: null, loading: false, error: errorMessage(error, 'Payment records could not be loaded.') })
     }
   }, [role])
-  useEffect(() => { const timer = window.setTimeout(load, 0); return () => window.clearTimeout(timer) }, [load])
+  useEffect(() => {
+    if (bootstrapped.current) return undefined
+    bootstrapped.current = true
+    let active = true
+    const bootstrap = async () => {
+      if (role === 'business') {
+        try {
+          const reconciliation = await paymentApi.reconcileTopUps()
+          if (active && reconciliation?.completed > 0) toast('Stripe payment confirmed. Wallet balance updated.', { type: 'success' })
+        } catch (error) {
+          const paidReturn = new URLSearchParams(window.location.search).get('topup') === 'success'
+          if (active && paidReturn) toast(errorMessage(error, 'Payment confirmation is still pending.'), { type: 'error' })
+        }
+      }
+      if (active) await load()
+      if (active && new URLSearchParams(window.location.search).has('topup')) {
+        window.history.replaceState({}, '', window.location.pathname)
+      }
+    }
+    bootstrap()
+    return () => { active = false }
+  }, [load, role, toast])
 
   const save = async (event) => {
     event.preventDefault()

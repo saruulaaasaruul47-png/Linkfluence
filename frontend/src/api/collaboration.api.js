@@ -53,6 +53,7 @@ export const contractApi = {
 export const paymentApi = {
   wallet: (currency = 'MNT') => apiClient.get('/payments/wallet', { params: { currency } }).then(dataOf),
   createTopUp: (payload) => apiClient.post('/payments/wallet/top-ups', payload).then(dataOf),
+  reconcileTopUps: () => apiClient.post('/payments/wallet/top-ups/reconcile', {}).then(dataOf),
   transactions: (params = {}) => apiClient.get('/payments/transactions', { params }).then(dataOf),
   methods: () => apiClient.get('/payments/methods').then(dataOf),
   addMethod: (payload) => apiClient.post('/payments/methods', payload).then(dataOf),

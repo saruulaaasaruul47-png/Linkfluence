@@ -125,6 +125,23 @@ export function createStripePaymentProvider({
       });
       return { provider: 'stripe', providerRef: refund.id, amount: stripeMajorAmount(refund.amount, refund.currency), currency: String(refund.currency).toUpperCase() };
     },
+    async checkIntent(providerRef) {
+      const session = await stripeRequest(`/checkout/sessions/${encodeURIComponent(providerRef)}`, { method: 'GET', secretKey });
+      return {
+        paid: session.payment_status === 'paid',
+        failed: session.status === 'expired',
+        amount: stripeMajorAmount(session.amount_total, session.currency),
+        currency: String(session.currency).toUpperCase(),
+        providerRef: session.id,
+        providerPaymentId: session.payment_intent || null,
+        createdAt: new Date(Number(session.created) * 1000).toISOString(),
+        raw: {
+          id: session.id,
+          status: session.status,
+          paymentStatus: session.payment_status,
+        },
+      };
+    },
     verifyWebhook(rawBody, signatureHeader) { return verifyStripeSignature(rawBody, signatureHeader, Date.now(), webhookSecret); },
     normalizeEvent(event) { return normalizedStripeEvent(event); },
   };

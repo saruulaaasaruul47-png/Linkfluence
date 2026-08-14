@@ -8,7 +8,10 @@ import { DashboardHeader, DashboardPage, DashboardPanel } from '../../components
 import { Avatar, Badge, Button, EmptyState, Skeleton, Switch, useToast } from '../../components/ui'
 
 function errorMessage(error, fallback) {
-  return error.response?.data?.error?.message || error.message || fallback
+  const backendError = error.response?.data?.error
+  const detail = backendError?.details && Object.values(backendError.details)[0]
+  const message = backendError?.message || error.message || fallback
+  return detail ? `${message} ${detail}` : message
 }
 
 function validDate(value) {

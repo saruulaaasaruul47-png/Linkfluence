@@ -12,6 +12,7 @@ export const walletTopUpSchema = envelope(z.object({
   currency: z.string().trim().length(3).transform((value) => value.toUpperCase()).default('MNT'),
   idempotencyKey: z.string().trim().min(8).max(160),
 }).strict());
+export const walletTopUpReconcileSchema = envelope();
 export const walletSummarySchema = envelope(z.unknown().optional(), empty, z.object({
   currency: z.string().trim().length(3).transform((value) => value.toUpperCase()).default('MNT'),
 }).strict());

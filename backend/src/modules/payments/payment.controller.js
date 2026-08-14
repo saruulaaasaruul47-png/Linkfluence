@@ -9,6 +9,7 @@ const BOM = String.fromCharCode(0xfeff);
 export const paymentController = {
   wallet: asyncHandler(async (req, res) => sendSuccess(res, 200, 'Business wallet loaded.', await walletService.summary(req.user.id, req.validated.query.currency))),
   createTopUp: asyncHandler(async (req, res) => sendSuccess(res, 201, 'Wallet top-up checkout created.', { topUp: await walletService.createTopUp(req.user.id, req.validated.body) })),
+  reconcileTopUps: asyncHandler(async (req, res) => sendSuccess(res, 200, 'Pending wallet top-ups reconciled.', await walletService.reconcilePendingTopUps(req.user.id))),
   collaborationPaymentSummary: asyncHandler(async (req, res) => sendSuccess(res, 200, 'Collaboration payment summary loaded.', await walletService.collaborationSummary(req.user.id, req.validated.params.id))),
   fundFromWallet: asyncHandler(async (req, res) => sendSuccess(res, 201, 'Collaboration funded from wallet.', await walletService.fundCollaboration(req.user.id, req.validated.params.id, req.validated.body))),
   createFundingIntent: asyncHandler(async (req, res) => sendSuccess(res, 201, 'Funding intent created.', await paymentService.createFundingIntent(req.user.id, req.validated.params.id, req.validated.body))),

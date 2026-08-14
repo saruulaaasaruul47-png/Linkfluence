@@ -110,6 +110,44 @@ export const walletService = {
     return topUpDto(topUp);
   },
 
+  async reconcilePendingTopUps(userId) {
+    const business = await walletRepository.businessForUser(userId);
+    if (!business) throw new AppError('Create a business channel first.', 403, 'BUSINESS_PROFILE_REQUIRED');
+    if (paymentProvider.name !== 'stripe' || typeof paymentProvider.checkIntent !== 'function') {
+      return { checked: 0, completed: 0, failed: 0, pending: 0 };
+    }
+
+    const pendingTopUps = (await walletRepository.topUps(userId, 20))
+      .filter((item) => item.status === 'PENDING' && item.provider === 'stripe' && item.providerRef)
+      .slice(0, 5);
+    const result = { checked: pendingTopUps.length, completed: 0, failed: 0, pending: 0 };
+
+    for (const topUp of pendingTopUps) {
+      const checked = await paymentProvider.checkIntent(topUp.providerRef);
+      if (!checked.paid && !checked.failed) {
+        result.pending += 1;
+        continue;
+      }
+
+      const terminalState = checked.paid ? 'paid' : 'failed';
+      const event = {
+        id: `reconcile:${paymentProvider.name}:${topUp.providerRef}:${terminalState}`,
+        type: checked.paid ? 'funding.succeeded' : 'payment.failed',
+        createdAt: checked.createdAt,
+        data: {
+          providerRef: checked.providerRef,
+          amount: checked.amount,
+          currency: checked.currency,
+          ...(checked.failed ? { failureReason: 'Stripe Checkout session expired before payment completed.' } : {}),
+        },
+      };
+      await this.processVerifiedTopUp(event, paymentProvider.name);
+      result[checked.paid ? 'completed' : 'failed'] += 1;
+    }
+
+    return result;
+  },
+
   async processVerifiedTopUp(payload, providerName, payloadHash = crypto.createHash('sha256').update(JSON.stringify(payload)).digest('hex')) {
     try {
       return await walletRepository.transaction(async (tx) => {
